@@ -1,7 +1,7 @@
 {
   "name": "Dashboard Vents",
   "short_name": "Vents",
-  "start_url": "/dashboard-vents/vents.html",
+  "start_url": "/dashboard_vents/vents.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#007bff",
