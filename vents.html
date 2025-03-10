@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Vents</title>
+  <style>
+    /* Réinitialisation */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: sans-serif; background: #f0f0f0; }
+    /* Grille 2x2 occupant toute la hauteur */
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 10px;
+      height: 100vh;
+      padding: 10px;
+    }
+    /* Style général des panneaux */
+    .panel {
+      position: relative;
+      background: #fff;
+      border: 2px solid #ccc;
+      overflow: hidden;
+    }
+    /* Le contenu des panneaux peut être un iframe ou un div */
+    .panel iframe,
+    .panel .panel-content {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    /* Lien couvrant entièrement le panneau pour rendre le tout cliquable */
+    .panel a.panel-link {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      text-decoration: none;
+      color: inherit;
+      background: transparent;
+    }
+    /* Un header (optionnel) pour afficher le titre dans le panel3 */
+    .panel .header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: rgba(255,255,255,0.8);
+      width: 100%;
+      padding: 5px;
+      z-index: 5;
+      text-align: center;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+
+<body>
+  <div class="grid-container">
+    <!-- Panel 1 : Carte -->
+    <div class="panel" id="panel1">
+      <!-- Chargement du contenu dans un iframe -->
+      <iframe src="https://www.mymeteo.be/?target=incaBe/index.php"></iframe>
+      <!-- Lien cliquable recouvrant tout le panneau -->
+      <a class="panel-link" href="https://www.mymeteo.be/?target=incaBe/index.php"></a>
+    </div>
+
+    <!-- Panel 2 : PDF -->
+    <div class="panel" id="panel2">
+        <p style="text-align:center; padding-top:240px;">Cliquer ici pour le bulletin d'annonces</p>
+          <!-- <iframe src="https://www.mymeteo.be/textForecastsNLFR/radio_fr.pdf" style="width:100%; height:100%;"></iframe> -->
+
+      <a class="panel-link" href="https://www.mymeteo.be/textForecastsNLFR/radio_fr.pdf"></a>
+    </div>
+
+    <!-- Panel 3 : Calcul des anémomètres (données via API) -->
+    <div class="panel" id="panel3">
+      <div class="panel-content" id="anemoData">
+        <p style="text-align:center; padding-top:30px;">Chargement des données...</p>
+      </div>
+      <!-- <a class="panel-link" href="https://cloud.crodeon.com/895/743441032/historic"></a> -->
+    </div>
+
+    <!-- Panel 4 : Prévisions pour Bruxelles -->
+    <div class="panel" id="panel4">
+      <canvas id="chartCanvas"></canvas>
+      <!-- Boutons de contrôle pour ajuster la période affichée -->
+      <div id="chartControls" style="text-align: center; margin-bottom: 5px;">
+        <button id="decreaseHours" style="padding: 5px;">&laquo;</button>
+        <span id="hoursDisplay" style="font-weight: bold; margin: 0 10px;">2</span> heures
+        <button id="increaseHours" style="padding: 5px;">&raquo;</button>
+      </div>
+
+
+      <!-- <a class="panel-link" href="https://www.timeanddate.com/weather/belgium/brussels/historic"></a> -->
+    </div>
+  </div>
+
+  <!-- JavaScript pour rafraîchir les données du panel3 toutes les 30 secondes -->
+
+  <script>
+    // Fonction de conversion des degrés en direction cardinale
+    console.log('Script lancé');
+
+    function degToCardinal(deg) {
+      const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+      const index = Math.round(deg / 45) % 8;
+      return directions[index];
+    }
+
+    // Définir les master IDs et la clé API
+    const masterIds = ['593494672', '743441032'];//'673186439',
+    const apiKey = '5iNzYWvMKPj2kdj02WFCVmNtKqDTNFyYc8eI6XFRm2M=';
+    //const apiUrl = `https://api.crodeon.com/api/v2/reporters/${masterId}/measurements/latest`;
+
+    // Fonction asynchrone pour récupérer et afficher les données pour tous les master IDs
+    async function fetchAnemoData() 
+    {
+      try {
+        console.log('fetchAnemoData lancé');
+
+        const results = await Promise.all(masterIds.map(async masterId => {
+          const apiUrl = `https://api.crodeon.com/api/v2/reporters/${masterId}/measurements/latest`;
+          const response = await fetch(apiUrl, {
+            headers: {
+              'Accept': 'application/json',
+              'X-API-KEY': apiKey
+            }
+          });
+          if (!response.ok) {
+            throw new Error(`Erreur HTTP (master ${masterId}): ${response.status}`);
+          }
+          const data = await response.json();
+          // console.log(`Données reçues pour masterId ${masterId}:`, data);
+
+          // Initialiser les valeurs par défaut
+          let avgSpeed = 'N/A', psi = 'N/A', windDirection = 'N/A', nameAnem = 'N/A';
+          // Parcourir les items et extraire les valeurs en fonction du channel_index
+          data.items.forEach(item => 
+          {
+            if (masterId =='593494672')
+            {
+              nameAnem = "CONTINENTAL"
+              if (item.channel_index == 15 && item.device_id.id== '1181746382') 
+              {
+                avgSpeed = Math.round(3.6*item.value)/10 + ' km/h';
+              }
+              else if (item.channel_index == 1 && item.device_id.id == masterId) 
+              {
+                psi = item.value/10 + ' hPa';
+              } 
+              else if (item.channel_index == 14) 
+              {
+                windDirection = item.value + ' ° (' + degToCardinal(item.value) + ')';
+              }
+            }
+            else if (masterId == '743441032')
+            {
+              nameAnem = "BIP"
+              if (item.channel_index == 15 && item.device_id.id== '1105200446') 
+              {
+                avgSpeed = Math.round(3.6*item.value)/10 + ' km/h';
+              }
+              else if (item.channel_index == 1 && item.device_id.id == masterId) 
+              {
+                psi = item.value/10 + ' hPa';
+              } 
+              else if (item.channel_index == 14 && item.device_id.id == '1105200446') 
+              {
+                windDirection = item.value + ' ° (' + degToCardinal(item.value) + ')';
+              }
+            }
+            
+          });
+          return { masterId, avgSpeed, psi, windDirection, nameAnem };
+        }));
+
+        // Construire le HTML pour afficher les résultats de chaque master
+        let html = '<div class="header">Calcul des anémomètres</div>';
+        html += '<div style="padding-top:30px; text-align:center;">';
+        results.forEach(result => {
+          html += `
+            <h3>Reporter ${result.nameAnem}</h3>
+            <p>Vitesse moyenne: <strong>${result.avgSpeed}</strong></p>
+            <p>Pression Atmosphérique: <strong>${result.psi}</strong></p>
+            <p>Direction du Vent: <strong>${result.windDirection}</strong></p>
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #ccc;">
+          `;
+        //console.log(`données reçues pour la pression ${result.psi}`)
+        });
+        html += '</div>';
+
+        document.getElementById('anemoData').innerHTML = html;
+      } catch (error) {
+        document.getElementById('anemoData').innerHTML = `<p style="text-align:center; padding-top:30px;">Erreur lors du chargement des données: ${error.message}</p>`;
+        console.error(error);
+      }
+    }
+
+    // Lancer immédiatement, puis toutes les 30 sec
+    fetchAnemoData();
+    setInterval(fetchAnemoData, 10000);
+
+
+     // Panel 4 - Graphique (IIFE pour isoler son scope)
+  (function() {
+    // Variable modifiable pour le nombre d'heures affichées
+    let previousHours = 2;
+    
+    // Définition des capteurs à afficher
+    const sensors = [
+      {
+        masterId: '743441032',     // Capteur 1
+        deviceId: '1105200446',
+        channelIndex: '15',
+        label: 'BIP',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: 'rgba(75, 192, 192, 0.2)'
+      },
+      {
+        masterId: '593494672',   // Remplacez par le masterId du deuxième capteur
+        deviceId: '1181746382',     // Remplacez par le deviceId du deuxième capteur
+        channelIndex: '15',
+        label: 'CONTINENTAL',
+        borderColor: 'rgba(255, 99, 132, 1)',
+        backgroundColor: 'rgba(255, 99, 132, 0.2)'
+      }
+    ];
+    
+    const page = 0;
+    const pageSize = 10000;
+    
+    // Initialisation du graphique avec deux datasets vides
+    const ctx = document.getElementById('chartCanvas').getContext('2d');
+    let myChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [], // les dates (timestamps) seront mises à jour à partir du premier capteur
+        datasets: sensors.map(sensor => ({
+          label: sensor.label,
+          data: [],
+          borderColor: sensor.borderColor,
+          backgroundColor: sensor.backgroundColor,
+          fill: false,
+          tension: 0.1,
+          borderWidth: 1,       // ligne plus fine
+          pointRadius: 2,       // points plus petits
+          pointHoverRadius: 10   // points légèrement agrandis au survol
+        }))
+      },
+      options: {
+        plugins: {
+          title: {
+            display: true,
+            text: 'Historique vitesse vent',
+            font: {size:24}
+          }
+        },
+        scales: {
+          x: {
+            type: 'time',  // échelle temporelle
+            time: {
+              unit: 'hour',
+              stepSize: 1,
+              displayFormats: {
+                hour: 'HH:mm'
+              },
+              tooltipFormat: 'PPpp'
+            },
+            // La plage temporelle est mise à jour dynamiquement dans updateChart()
+            title: {
+              display: true,
+              text: previousHours + ' dernières heures'
+            },
+            ticks: {
+              autoSkip: true,
+              maxRotation: 0,
+              minRotation: 0
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'vitesse moyenne km/h'
+            }
+          }
+        }
+      }
+    });
+    
+    // Fonction de mise à jour du graphique selon previousHours
+    function updateChart() {
+      // Mise à jour des limites de l'axe des X
+      myChart.options.scales.x.min = new Date(Date.now() - previousHours * 60 * 60 * 1000);
+      myChart.options.scales.x.max = new Date();
+      myChart.options.scales.x.title.text = previousHours + ' dernières heures';
+      
+      const startTime = new Date(Date.now() - previousHours * 60 * 60 * 1000).toISOString();
+      const endTime = new Date().toISOString();
+      
+      // Pour chaque capteur, on récupère les données et on met à jour le dataset correspondant
+      sensors.forEach((sensor, index) => {
+        const url = `https://api.crodeon.com/api/v2/reporters/${sensor.masterId}/sensors/${sensor.deviceId}/channels/${sensor.channelIndex}/measurements?start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}&page=${page}&page_size=${pageSize}`;
+        
+        fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'X-Api-Key': apiKey  // Assurez-vous que cette variable est définie globalement
+          }
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          const now = Date.now();
+          const sensorStartTime = now - previousHours * 60 * 60 * 1000;
+          // Filtrer les points correspondant à la période choisie
+          const filteredItems = data.items.filter(item => {
+            const ts = new Date(item.timestamp).getTime();
+            return ts >= sensorStartTime && ts <= now;
+          });
+          console.log(`Points dans les ${previousHours} dernières heures pour ${sensor.label} :`, filteredItems);
+          // Mise à jour du dataset du capteur
+          const labels = filteredItems.map(item => new Date(item.timestamp));
+          const values = filteredItems.map(item => Math.round(3.6*item.value) / 10);
+          myChart.data.datasets[index].data = values;
+          // Mettez à jour les labels uniquement pour le premier capteur (ou adaptez selon vos besoins)
+          if (index === 0) {
+            myChart.data.labels = labels;
+          }
+          myChart.update();
+        })
+        .catch(error => {
+          console.error(`Erreur lors de la récupération des données pour ${sensor.label} :`, error);
+        });
+      });
+    }
+    
+    // Appel initial pour charger le graphique
+    updateChart();
+    
+    // Gestion des boutons de contrôle
+    document.getElementById('decreaseHours').addEventListener('click', function() {
+      if (previousHours > 1) { // On ne descend pas en dessous d'1 heure
+        previousHours--;
+        document.getElementById('hoursDisplay').textContent = previousHours;
+        updateChart();
+      }
+    });
+    
+    document.getElementById('increaseHours').addEventListener('click', function() {
+      previousHours++;
+      document.getElementById('hoursDisplay').textContent = previousHours;
+      updateChart();
+    });
+    
+  })();
+
+  </script>
+</body>
+</html>
