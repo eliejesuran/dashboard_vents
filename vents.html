@@ -116,7 +116,7 @@
     }
 
     // Définir les master IDs et la clé API
-    const masterIds = ['593494672', '743441032'];//'673186439',
+    const masterIds = ['593494672', '743441032','673186439'];//
     const apiKey = '5iNzYWvMKPj2kdj02WFCVmNtKqDTNFyYc8eI6XFRm2M=';
     //const apiUrl = `https://api.crodeon.com/api/v2/reporters/${masterId}/measurements/latest`;
 
@@ -177,6 +177,22 @@
                 windDirection = item.value + ' ° (' + degToCardinal(item.value) + ')';
               }
             }
+            else if (masterId == '673186439')
+            {
+              nameAnem = "PALAIS 5"
+              if (item.channel_index == 15 && item.device_id.id== '1258292575') 
+              {
+                avgSpeed = Math.round(3.6*item.value)/10 + ' km/h';
+              }
+              else if (item.channel_index == 1 && item.device_id.id == masterId) 
+              {
+                psi = item.value/10 + ' hPa';
+              } 
+              else if (item.channel_index == 14 && item.device_id.id == '1258292575') 
+              {
+                windDirection = item.value + ' ° (' + degToCardinal(item.value) + ')';
+              }
+            }
             
           });
           return { masterId, avgSpeed, psi, windDirection, nameAnem };
@@ -231,6 +247,14 @@
         label: 'CONTINENTAL',
         borderColor: 'rgba(255, 99, 132, 1)',
         backgroundColor: 'rgba(255, 99, 132, 0.2)'
+      },
+      {
+        masterId: '673186439',   // Remplacez par le masterId du troisieme capteur
+        deviceId: '1258292575',     // Remplacez par le deviceId du troisieme capteur
+        channelIndex: '15',
+        label: 'PALAIS 5',
+        borderColor: 'rgba(117, 0, 255, 1)',
+        backgroundColor: 'rgba(117, 0, 255, 0.2)'
       }
     ];
     
