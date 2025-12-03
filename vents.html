@@ -6,58 +6,162 @@
   <link rel="manifest" href="manifest.json">
 
   <title>Dashboard Vents</title>
-  <style>
-    /* Réinitialisation */
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: sans-serif; background: #f0f0f0; }
-    /* Grille 2x2 occupant toute la hauteur */
+<style>
+  /* Réinitialisation */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #f0f0f0; }
+
+  /*
+    Layout desktop :
+
+    ┌─────────────┬─────────────┐
+    │ Panel 1     │             │
+    │ (40%)       │             │
+    ├─────────────┤  Panel 3    │
+    │ Panel 2     │  (100%)     │
+    │ (10%)       │             │
+    ├─────────────┤             │
+    │ Panel 4 (50%)             │
+    └───────────────────────────┘
+  */
+
+  .grid-container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;  /* gauche = 2/3, droite = 1/3 */
+    grid-template-rows: 40vh 10vh 50vh;
+    gap: 10px;
+    height: 100vh;
+    padding: 10px;
+  }
+
+  .panel {
+    position: relative;
+    background: #fff;
+    border: 2px solid #ccc;
+    overflow: hidden;
+  }
+
+  .panel iframe,
+  .panel .panel-content {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  .panel a.panel-link {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .panel .header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: rgba(255,255,255,0.8);
+    width: 100%;
+    padding: 5px;
+    z-index: 5;
+    text-align: center;
+    font-weight: bold;
+  }
+
+  /* ----- Positionnement desktop ----- */
+
+  .grid-container > .panel:nth-child(1) {
+    grid-column: 1;   /* gauche */
+    grid-row: 1;      /* 40% */
+  }
+
+  .grid-container > .panel:nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;      /* 10% */
+  }
+
+  /* PANEL 3 : toute la hauteur (lignes 1 à 3) */
+  .grid-container > .panel:nth-child(3) {
+    grid-column: 2;   /* colonne droite */
+    grid-row: 1 / 4;  /* occupe 40vh + 10vh + 50vh = 100vh */
+  }
+
+  /* PANEL 4 : bas gauche */
+  .grid-container > .panel:nth-child(4) {
+    grid-column: 1;
+    grid-row: 3;      /* 50% */
+  }
+
+  /* ----- Spécifique PANEL 4 : graphique + boutons visibles ----- */
+
+  #panel4 {
+    overflow: visible;  /* on ne coupe plus le bas */
+  }
+
+  /* On met le contenu du panel 4 en colonne :
+     - le canvas prend la place dispo
+     - les boutons restent visibles en bas
+  */
+  #panel4 .panel-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;   /* remplit le panel */
+  }
+
+  /* Le canvas prend l’espace restant */
+  #panel4 .panel-content canvas {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }
+
+  /* Les contrôles (boutons, etc.) restent à leur taille naturelle */
+  #panel4 .panel-content .controls {
+    flex: 0 0 auto;
+    padding: 5px 0;  /* juste un peu d’air */
+  }
+
+  /* Si tes boutons ne sont pas dans .controls,
+     tu peux soit entourer les boutons dans <div class="controls">...</div>,
+     soit enlever ce bloc et laisser les boutons en dehors du flex canvas.
+  */
+
+  /* ----- Responsive mobile (< 900px) ----- */
+
+  @media (max-width: 900px) {
     .grid-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
-      gap: 10px;
-      height: 100vh;
-      padding: 10px;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+      height: auto;
+      padding-bottom: 25vh; /* espace pour panel 3 fixé */
     }
-    /* Style général des panneaux */
-    .panel {
-      position: relative;
-      background: #fff;
-      border: 2px solid #ccc;
-      overflow: hidden;
+
+    .grid-container > .panel {
+      grid-column: 1;
+      grid-row: auto;
+      min-height: 40vh;
     }
-    /* Le contenu des panneaux peut être un iframe ou un div */
-    .panel iframe,
-    .panel .panel-content {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-    /* Lien couvrant entièrement le panneau pour rendre le tout cliquable */
-    .panel a.panel-link {
-      position: absolute;
-      top: 0;
+
+    /* Panel 3 reste visible en bas */
+    .grid-container > .panel:nth-child(3) {
+      position: fixed;
+      bottom: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 10;
-      text-decoration: none;
-      color: inherit;
-      background: transparent;
+      right: 0;
+      height: 25vh;
+      z-index: 999;
     }
-    /* Un header (optionnel) pour afficher le titre dans le panel3 */
-    .panel .header {
-      position: absolute;
-      top: 0;
-      left: 0;
-      background: rgba(255,255,255,0.8);
-      width: 100%;
-      padding: 5px;
-      z-index: 5;
-      text-align: center;
-      font-weight: bold;
-    }
-  </style>
+  }
+</style>
+
+
+
+
 </head>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
@@ -74,7 +178,7 @@
 
     <!-- Panel 2 : PDF -->
     <div class="panel" id="panel2">
-        <p style="text-align:center; padding-top:240px;">Cliquer ici pour le bulletin d'annonces</p>
+        <p style="text-align:center; padding-top:10px;">Cliquer ici pour le bulletin d'annonces</p>
           <!-- <iframe src="https://www.mymeteo.be/textForecastsNLFR/radio_fr.pdf" style="width:100%; height:100%;"></iframe> -->
 
       <a class="panel-link" href="https://www.mymeteo.be/textForecastsNLFR/radio_fr.pdf"></a>
@@ -92,10 +196,10 @@
     <div class="panel" id="panel4">
       <canvas id="chartCanvas"></canvas>
       <!-- Boutons de contrôle pour ajuster la période affichée -->
-      <div id="chartControls" style="text-align: center; margin-bottom: 5px;">
-        <button id="decreaseHours" style="padding: 5px;">&laquo;</button>
+      <div id="chartControls" style="text-align: center; margin-bottom: 1px;">
+        <button id="decreaseHours" style="padding: 1px;">&laquo;</button>
         <span id="hoursDisplay" style="font-weight: bold; margin: 0 10px;">2</span> heures
-        <button id="increaseHours" style="padding: 5px;">&raquo;</button>
+        <button id="increaseHours" style="padding: 1px;">&raquo;</button>
       </div>
 
 
@@ -116,7 +220,7 @@
     }
 
     // Définir les master IDs et la clé API
-    const masterIds = ['593494672', '743441032','673186439'];//
+    const masterIds = ['593494672', '743441032','673186439','799015652'];//
     const apiKey = '5iNzYWvMKPj2kdj02WFCVmNtKqDTNFyYc8eI6XFRm2M=';
     //const apiUrl = `https://api.crodeon.com/api/v2/reporters/${masterId}/measurements/latest`;
 
@@ -193,6 +297,22 @@
                 windDirection = item.value + ' ° (' + degToCardinal(item.value) + ')';
               }
             }
+            else if (masterId == '799015652')
+            {
+              nameAnem = "PATINOIRE"
+              if (item.channel_index == 15 && item.device_id.id== '1125124441') 
+              {
+                avgSpeed = Math.round(3.6*item.value)/10 + ' km/h';
+              }
+              else if (item.channel_index == 1 && item.device_id.id == masterId) 
+              {
+                psi = item.value/10 + ' hPa';
+              } 
+              else if (item.channel_index == 14 && item.device_id.id == '1125124441') 
+              {
+                windDirection = item.value + ' ° (' + degToCardinal(item.value) + ')';
+              }
+            }
             
           });
           return { masterId, avgSpeed, psi, windDirection, nameAnem };
@@ -225,7 +345,7 @@
     setInterval(fetchAnemoData, 10000);
 
 
-     // Panel 4 - Graphique (IIFE pour isoler son scope)
+// Panel 4 - Graphique (IIFE pour isoler son scope)
   (function() {
     // Variable modifiable pour le nombre d'heures affichées
     let previousHours = 2;
@@ -255,6 +375,14 @@
         label: 'PALAIS 5',
         borderColor: 'rgba(117, 0, 255, 1)',
         backgroundColor: 'rgba(117, 0, 255, 0.2)'
+      },
+      {
+        masterId: '799015652',   // Remplacez par le masterId du quatrieme capteur
+        deviceId: '1125124441',     // Remplacez par le deviceId du quatrieme capteur
+        channelIndex: '15',
+        label: 'PATINOIRE',
+        borderColor: 'rgba(24, 0, 255, 1)',
+        backgroundColor: 'rgba(24, 0, 255, 0.2)'
       }
     ];
     
@@ -280,12 +408,13 @@
         }))
       },
       options: {
+        responsive: true,            
         plugins: {
-          title: {
-            display: true,
-            text: 'Historique vitesse vent',
-            font: {size:24}
-          }
+            title: {
+              display: true,
+              text: 'Historique vitesse vent',
+              font: {size:24}
+            }
         },
         scales: {
           x: {
@@ -382,7 +511,6 @@
         updateChart();
       }
     });
-    
     document.getElementById('increaseHours').addEventListener('click', function() {
       previousHours++;
       document.getElementById('hoursDisplay').textContent = previousHours;
