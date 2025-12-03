@@ -11,24 +11,12 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: sans-serif; background: #f0f0f0; }
 
-  /*
-    Layout desktop :
-
-    ┌─────────────┬─────────────┐
-    │ Panel 1     │             │
-    │ (40%)       │             │
-    ├─────────────┤  Panel 3    │
-    │ Panel 2     │  (100%)     │
-    │ (10%)       │             │
-    ├─────────────┤             │
-    │ Panel 4 (50%)             │
-    └───────────────────────────┘
-  */
+  /* ===== LAYOUT DESKTOP (>= 900px) ===== */
 
   .grid-container {
     display: grid;
-    grid-template-columns: 2fr 1fr;  /* gauche = 2/3, droite = 1/3 */
-    grid-template-rows: 40vh 10vh 50vh;
+    grid-template-columns: 2fr 1fr;    /* gauche = 2/3, droite = 1/3 */
+    grid-template-rows: 40vh 10vh 50vh;/* 100% hauteur écran */
     gap: 10px;
     height: 100vh;
     padding: 10px;
@@ -57,6 +45,7 @@
     z-index: 10;
     text-decoration: none;
     color: inherit;
+    background: transparent;
   }
 
   .panel .header {
@@ -71,93 +60,105 @@
     font-weight: bold;
   }
 
-  /* ----- Positionnement desktop ----- */
-
+  /* Positionnement desktop */
   .grid-container > .panel:nth-child(1) {
-    grid-column: 1;   /* gauche */
-    grid-row: 1;      /* 40% */
+    grid-column: 1;
+    grid-row: 1;          /* 40vh */
   }
 
   .grid-container > .panel:nth-child(2) {
     grid-column: 1;
-    grid-row: 2;      /* 10% */
+    grid-row: 2;          /* 10vh */
   }
 
-  /* PANEL 3 : toute la hauteur (lignes 1 à 3) */
   .grid-container > .panel:nth-child(3) {
-    grid-column: 2;   /* colonne droite */
-    grid-row: 1 / 4;  /* occupe 40vh + 10vh + 50vh = 100vh */
+    grid-column: 2;       /* colonne droite */
+    grid-row: 1 / 4;      /* toute la hauteur : 40 + 10 + 50 */
+    position: static;     /* important : pas fixe sur desktop */
+    overflow: auto;       /* scroll interne si contenu dépasse */
   }
 
-  /* PANEL 4 : bas gauche */
   .grid-container > .panel:nth-child(4) {
     grid-column: 1;
-    grid-row: 3;      /* 50% */
+    grid-row: 3;          /* 50vh */
   }
 
-  /* ----- Spécifique PANEL 4 : graphique + boutons visibles ----- */
-
+  /* Panel 4 : graphique + boutons (HTML tel que tu l'as donné) */
   #panel4 {
-    overflow: visible;  /* on ne coupe plus le bas */
-  }
-
-  /* On met le contenu du panel 4 en colonne :
-     - le canvas prend la place dispo
-     - les boutons restent visibles en bas
-  */
-  #panel4 .panel-content {
     display: flex;
     flex-direction: column;
-    height: 100%;   /* remplit le panel */
+    overflow: visible;     /* on garde tout à l'intérieur */
   }
 
-  /* Le canvas prend l’espace restant */
-  #panel4 .panel-content canvas {
-    flex: 1 1 auto;
+  #chartCanvas {
+    flex: 1 1 auto;       /* prend la place disponible */
     min-height: 0;
     width: 100% !important;
-    height: 100% !important;
+    height: auto !important;  /* laisse le flex gérer la hauteur */
     display: block;
   }
 
-  /* Les contrôles (boutons, etc.) restent à leur taille naturelle */
-  #panel4 .panel-content .controls {
-    flex: 0 0 auto;
-    padding: 5px 0;  /* juste un peu d’air */
+  #chartControls {
+    flex: 0 0 auto;       /* reste à sa taille naturelle en bas */
+    text-align: center;
   }
 
-  /* Si tes boutons ne sont pas dans .controls,
-     tu peux soit entourer les boutons dans <div class="controls">...</div>,
-     soit enlever ce bloc et laisser les boutons en dehors du flex canvas.
-  */
-
-  /* ----- Responsive mobile (< 900px) ----- */
+  /* ===== LAYOUT MOBILE (< 900px) ===== */
 
   @media (max-width: 900px) {
+
+    /* On repasse le contenu principal en colonne,
+       mais on laisse de la place à droite pour le panel 3 fixe */
     .grid-container {
-      grid-template-columns: 1fr;
-      grid-template-rows: auto;
+      display: block;         /* plus simple qu'une grille ici */
+      padding: 10px;
+      padding-right: 30vw;    /* réserve un espace pour panel 3 à droite */
       height: auto;
-      padding-bottom: 25vh; /* espace pour panel 3 fixé */
     }
 
     .grid-container > .panel {
-      grid-column: 1;
-      grid-row: auto;
+      width: 100%;
+      margin-bottom: 10px;
       min-height: 40vh;
     }
 
-    /* Panel 3 reste visible en bas */
+    /* PANEL 3 : barre fixe à droite de l'écran, toujours visible */
     .grid-container > .panel:nth-child(3) {
       position: fixed;
-      bottom: 0;
-      left: 0;
+      top: 0;
       right: 0;
-      height: 25vh;
+      bottom: 0;
+      width: 30vw;        /* largeur de la barre droite */
+      min-width: 120px;   /* pour éviter qu’elle soit trop étroite */
+      height: 100vh;
       z-index: 999;
+      margin-bottom: 0;
+      border-left: 2px solid #ccc;
+      border-right: 0;
+      border-top: 0;
+      border-bottom: 0;
+      overflow: auto;     /* scroll interne si besoin */
+    }
+
+    /* PANEL 1, 2, 4 : juste empilés dans la zone de gauche */
+    .grid-container > .panel:nth-child(1),
+    .grid-container > .panel:nth-child(2),
+    .grid-container > .panel:nth-child(4) {
+      position: static;
+    }
+
+    /* Panel 4 plus adapté sur mobile : hauteur auto */
+    #panel4 {
+      min-height: 40vh;
+      height: auto;
+    }
+
+    #chartCanvas {
+      height: 30vh !important;   /* un peu de hauteur pour le graph */
     }
   }
 </style>
+
 
 
 
