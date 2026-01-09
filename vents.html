@@ -485,14 +485,11 @@
             return ts >= sensorStartTime && ts <= now;
           });
           console.log(`Points dans les ${previousHours} dernières heures pour ${sensor.label} :`, filteredItems);
-          // Mise à jour du dataset du capteur
-          const labels = filteredItems.map(item => new Date(item.timestamp));
-          const values = filteredItems.map(item => Math.round(3.6*item.value) / 10);
-          myChart.data.datasets[index].data = values;
-          // Mettez à jour les labels uniquement pour le premier capteur (ou adaptez selon vos besoins)
-          if (index === 0) {
-            myChart.data.labels = labels;
-          }
+          // Mise à jour du dataset du capteur (points {x,y} pour rendre chaque série indépendante)
+          myChart.data.datasets[index].data = filteredItems.map(item => ({
+            x: new Date(item.timestamp),
+            y: Math.round(3.6 * item.value) / 10
+          }));
           myChart.update();
         })
         .catch(error => {
