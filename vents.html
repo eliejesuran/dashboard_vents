@@ -16,8 +16,7 @@
   .grid-container {
     display: grid;
     grid-template-columns: 2fr 1fr;    /* gauche = 2/3, droite = 1/3 */
-    grid-template-rows: 4fr 1fr 5fr;   /* 100% hauteur écran (gaps inclus) */
-    gap: 10px;
+    grid-template-rows: 4fr 1fr 5fr;   /* 100% hauteur écran (gaps inclus) */    gap: 10px;
     height: 100vh;
     padding: 10px;
   }
@@ -87,17 +86,14 @@
   #panel4 {
     display: flex;
     flex-direction: column;
-    overflow: hidden;     /* évite le débordement du graphique */
-  }
-
-  .chart-wrapper {
-    flex: 1 1 auto;       /* prend la place disponible */
-    min-height: 0;
+    overflow: visible;     /* on garde tout à l'intérieur */
   }
 
   #chartCanvas {
+    flex: 1 1 auto;       /* prend la place disponible */
+    min-height: 0;
     width: 100% !important;
-    height: 100% !important;  /* utiliser la hauteur du wrapper */
+    height: 100% !important;  /* laisse le flex gérer la hauteur */
     display: block;
   }
 
@@ -156,8 +152,8 @@
       height: auto;
     }
 
-    .chart-wrapper {
-      height: 30vh;   /* un peu de hauteur pour le graph */
+    #chartCanvas {
+      height: 30vh !important;   /* un peu de hauteur pour le graph */
     }
   }
 </style>
@@ -177,7 +173,7 @@
       <!-- Chargement du contenu dans un iframe -->
       <iframe src="https://www.mymeteo.be/?target=incaBe/index.php"></iframe>
       <!-- Lien cliquable recouvrant tout le panneau -->
-      <a class="panel-link" href="https://www.mymeteo.be/?target=incaBe/index.php"> <img src="icone-512x512.png" alt="Bouton Panel 1" class="btn-image"></a>
+      <a class="panel-link" href="https://www.mymeteo.be/?target=incaBe/index.php"> <img src="INCA.png" alt="Bouton Panel 1" class="btn-image"></a>
     </div>
 
     <!-- Panel 2 : PDF -->
@@ -198,9 +194,7 @@
 
     <!-- Panel 4 : Prévisions pour Bruxelles -->
     <div class="panel" id="panel4">
-      <div class="chart-wrapper">
-        <canvas id="chartCanvas"></canvas>
-      </div>
+      <canvas id="chartCanvas"></canvas>
       <!-- Boutons de contrôle pour ajuster la période affichée -->
       <div id="chartControls" style="text-align: center; margin-bottom: 1px;">
         <button id="decreaseHours" style="padding: 1px;">&laquo;</button>
@@ -414,8 +408,7 @@
         }))
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true,            
         plugins: {
             title: {
               display: true,
@@ -473,7 +466,7 @@
           method: 'GET',
           headers: {
             'Accept': 'application/json',
-            'X-Api-Key': apiKey  // Assurez-vous que cette variable est définie globalement
+            'X-API-KEY': apiKey  // Assurez-vous que cette variable est définie globalement
           }
         })
         .then(response => {
@@ -491,7 +484,7 @@
             return ts >= sensorStartTime && ts <= now;
           });
           console.log(`Points dans les ${previousHours} dernières heures pour ${sensor.label} :`, filteredItems);
-          // Mise à jour du dataset du capteur (points {x,y} pour rendre chaque série indépendante)
+           // Mise à jour du dataset du capteur (points {x,y} pour rendre chaque série indépendante)
           myChart.data.datasets[index].data = filteredItems.map(item => ({
             x: new Date(item.timestamp),
             y: Math.round(3.6 * item.value) / 10
