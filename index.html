@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
 <style>
   /* ══ BRIGHT (défaut) ══════════════════════════════ */
@@ -186,35 +187,133 @@
   }
 
   /* ── PANEL 1 ─────────────────────────────────────── */
-  #panel1 { grid-column:1; grid-row:1; }
-  #panel1 iframe { width:100%; height:100%; border:none; flex:1; }
-
+  #panel1 {
+    grid-column:1; grid-row:3;
+    padding-top: 32px;
+    overflow: hidden;
+  }
+  .video-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    padding: 8px;
+  }
+  .video-tile {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .video-tile video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    background: #000;
+  }
+  .video-title {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: rgba(17,24,39,.78);
+    color: #fff;
+    font-family:'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .video-fallback {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    color: #fff;
+    background: rgba(0,0,0,.72);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    z-index: 3;
+  }
+  .video-fallback a {
+    color: #fff;
+    text-decoration: underline;
+  }
+  .mobile-video-controls {
+    display: none;
+    position: absolute;
+    top: 38px;
+    right: 10px;
+    z-index: 12;
+  }
+  .stream-button {
+    appearance: none;
+    border: 1px solid rgba(255,255,255,.25);
+    background: rgba(17,24,39,.78);
+    color: #fff;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family:'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background .2s, border-color .2s, transform .15s;
+  }
+  .stream-button:hover { background: rgba(17,24,39,.95); }
   /* ── PANEL 2 ─────────────────────────────────────── */
   #panel2 {
     grid-column:1; grid-row:2;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .panel2-button {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
     padding: 0 20px;
     background: var(--surface2);
+    border: 1px solid var(--border);
     border-left: 3px solid var(--accent);
+    border-radius: 8px;
     cursor: pointer;
     text-decoration: none;
     color: var(--text);
+    min-height: 54px;
     transition: background .2s, border-color .3s;
+    box-shadow: var(--shadow);
   }
-  #panel2:hover { background: var(--border); }
-  #panel2 .bulletin-left { display:flex; align-items:center; gap:12px; }
-  #panel2 .bulletin-icon { font-size:20px; line-height:1; }
-  #panel2 .bulletin-title {
+  .panel2-button:hover { background: var(--border); }
+  .panel2-button.secondary { border-left-color: var(--accent3); }
+  .panel2-button .bulletin-left { display:flex; align-items:center; gap:12px; }
+  .panel2-button .bulletin-icon { font-size:20px; line-height:1; }
+  .panel2-button .bulletin-title {
     font-size:13px; font-weight:700; letter-spacing:1px;
     color:var(--accent); text-transform:uppercase;
   }
-  #panel2 .bulletin-sub { font-size:11px; color:var(--text-dim); margin-top:2px; }
-  #panel2 .bulletin-cta {
+  .panel2-button.secondary .bulletin-title { color: var(--accent3); }
+  .panel2-button .bulletin-sub { font-size:11px; color:var(--text-dim); margin-top:2px; }
+  .panel2-button .bulletin-cta {
     font-family:'Share Tech Mono', monospace; font-size:11px;
     color:var(--accent); border:1px solid var(--accent);
     padding:5px 14px; border-radius:4px; letter-spacing:1px;
+    white-space: nowrap;
+  }
+  .panel2-button.secondary .bulletin-cta {
+    color:var(--accent3); border-color:var(--accent3);
   }
 
   /* ── PANEL 3 ─────────────────────────────────────── */
@@ -263,7 +362,7 @@
   }
 
   /* ── PANEL 4 ─────────────────────────────────────── */
-  #panel4 { grid-column:1; grid-row:3; }
+  #panel4 { grid-column:1; grid-row:1; }
   #panel4 .chart-wrap { flex:1; min-height:0; padding:6px 12px 2px; position:relative; }
   #chartCanvas { width:100% !important; height:100% !important; }
 
@@ -288,10 +387,12 @@
   @media (max-width:900px) {
     body { overflow:auto; }
     .grid { grid-template-columns:1fr; grid-template-rows:auto; height:auto; }
-    #panel1 { grid-column:1; grid-row:1; height:50vw; min-height:220px; }
-    #panel2 { grid-column:1; grid-row:2; }
-    #panel3 { grid-column:1; grid-row:3; height:auto; overflow:visible; }
-    #panel4 { grid-column:1; grid-row:4; height:55vw; min-height:260px; }
+    #panel4 { grid-column:1; grid-row:1; height:55vw; min-height:260px; }
+    #panel2 { grid-column:1; grid-row:2; grid-template-columns:1fr; }
+    #panel1 { grid-column:1; grid-row:3; height:65vw; min-height:260px; }
+    #panel3 { grid-column:1; grid-row:4; height:auto; overflow:visible; }
+    .video-layout { grid-template-columns: 1fr; }
+    .mobile-video-controls { display: block; }
   }
 </style>
 </head>
@@ -313,30 +414,69 @@
   <div class="grid">
 
     <div class="panel" id="panel1">
-      <div class="panel-label">01 · Carte INCA</div>
-      <iframe src="https://www.mymeteo.be/?target=incaBe/index.php" title="Carte INCA mymeteo.be"></iframe>
-    </div>
-
-    <a class="panel" id="panel2"
-       href="https://www.mymeteo.be/?target=textForecastsNLFR/index_fr.php"
-       target="_blank" rel="noopener">
-      <div class="bulletin-left">
-        <div class="bulletin-icon">📋</div>
-        <div>
-          <div class="bulletin-title">Bulletin de prévisions météo</div>
-          <div class="bulletin-sub">Prévisions texte · IRM / mymeteo.be</div>
+      <div class="panel-label">03 · LIVE CAM BRUXELLES</div>
+      <div class="mobile-video-controls">
+        <button class="stream-button" id="streamToggle">Grand Place / De Brouckère</button>
+      </div>
+      <div class="video-layout desktop-mode" id="videoLayout">
+        <div class="video-tile" data-stream="debrouckere">
+          <div class="video-title">De Brouckère</div>
+          <video id="liveVideoA" autoplay muted playsinline controls></video>
+          <div class="video-fallback" id="videoFallbackA">
+            <div>
+              Flux vidéo indisponible.<br>
+              <a href="https://livecam.brucity.be/LiveBrusselsWebcams/streams/vTm9wYDlwkAEO8mH1746783018793.m3u8" target="_blank" rel="noopener">Ouvrir le flux directement</a>
+            </div>
+          </div>
+        </div>
+        <div class="video-tile" data-stream="grandplace">
+          <div class="video-title">Grand Place</div>
+          <video id="liveVideoB" autoplay muted playsinline controls></video>
+          <div class="video-fallback" id="videoFallbackB">
+            <div>
+              Flux vidéo indisponible.<br>
+              <a href="https://livecam.brucity.be/LiveBrusselsWebcams/streams/fDdnnEmqOn6Kyy3E1701416388577.m3u8" target="_blank" rel="noopener">Ouvrir le flux directement</a>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="bulletin-cta">OUVRIR →</div>
-    </a>
+    </div>
+
+    <div class="panel" id="panel2">
+      <a class="panel2-button"
+         href="https://www.mymeteo.be/?target=textForecastsNLFR/index_fr.php"
+         target="_blank" rel="noopener">
+        <div class="bulletin-left">
+          <div class="bulletin-icon">📋</div>
+          <div>
+            <div class="bulletin-title">Bulletin météo</div>
+            <div class="bulletin-sub">Prévisions texte · IRM / mymeteo.be</div>
+          </div>
+        </div>
+        <div class="bulletin-cta">OUVRIR →</div>
+      </a>
+
+      <a class="panel2-button secondary"
+         href="https://www.mymeteo.be/?target=incaBe/index.php"
+         target="_blank" rel="noopener">
+        <div class="bulletin-left">
+          <div class="bulletin-icon">🗺️</div>
+          <div>
+            <div class="bulletin-title">INCA</div>
+            <div class="bulletin-sub">Carte météo · mymeteo.be</div>
+          </div>
+        </div>
+        <div class="bulletin-cta">OUVRIR →</div>
+      </a>
+    </div>
 
     <div class="panel" id="panel3">
-      <div class="panel-label">03 · Anémomètres</div>
+      <div class="panel-label">02 · ANÉMOMÈTRES</div>
       <div id="anemoData"><div class="anem-loading">CHARGEMENT…</div></div>
     </div>
 
     <div class="panel" id="panel4">
-      <div class="panel-label">04 · Historique vitesses</div>
+      <div class="panel-label">01 · Historique vitesses</div>
       <div class="chart-wrap"><canvas id="chartCanvas"></canvas></div>
       <div id="chartControls">
         <button id="decreaseHours">◂</button>
@@ -400,6 +540,137 @@ function updateClock() {
 }
 setInterval(updateClock, 1000);
 updateClock();
+
+/* ══ VIDEO LIVE HLS ═══════════════════════════════ */
+(function initLiveVideo() {
+  const streams = {
+    debrouckere: {
+      url: 'https://livecam.brucity.be/LiveBrusselsWebcams/streams/vTm9wYDlwkAEO8mH1746783018793.m3u8',
+      label: 'De Brouckère'
+    },
+    grandplace: {
+      url: 'https://livecam.brucity.be/LiveBrusselsWebcams/streams/fDdnnEmqOn6Kyy3E1701416388577.m3u8',
+      label: 'Grand Place'
+    }
+  };
+
+  const tiles = {
+    debrouckere: {
+      tile: document.querySelector('.video-tile[data-stream="debrouckere"]'),
+      video: document.getElementById('liveVideoA'),
+      fallback: document.getElementById('videoFallbackA')
+    },
+    grandplace: {
+      tile: document.querySelector('.video-tile[data-stream="grandplace"]'),
+      video: document.getElementById('liveVideoB'),
+      fallback: document.getElementById('videoFallbackB')
+    }
+  };
+
+  const toggleButton = document.getElementById('streamToggle');
+  const mediaQuery = window.matchMedia('(max-width: 900px)');
+  let currentMobileStream = 'debrouckere';
+
+  function showFallback(key) {
+    const fallback = tiles[key]?.fallback;
+    if (fallback) fallback.style.display = 'flex';
+  }
+
+  function hideFallback(key) {
+    const fallback = tiles[key]?.fallback;
+    if (fallback) fallback.style.display = 'none';
+  }
+
+  function attachStream(video, fallback, url) {
+    if (!video || !fallback) return;
+    hideFallbackByElement(fallback);
+    video.muted = true;
+    video.playsInline = true;
+    video.autoplay = true;
+
+    if (video._hlsInstance) {
+      video._hlsInstance.destroy();
+      video._hlsInstance = null;
+    }
+
+    const onError = () => { fallback.style.display = 'flex'; };
+    video.onerror = onError;
+
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url;
+      video.load();
+      video.play().catch(() => {});
+      return;
+    }
+
+    if (window.Hls && window.Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true
+      });
+      video._hlsInstance = hls;
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        fallback.style.display = 'none';
+        video.play().catch(() => {});
+      });
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data && data.fatal) {
+          fallback.style.display = 'flex';
+        }
+      });
+      return;
+    }
+
+    fallback.style.display = 'flex';
+  }
+
+  function hideFallbackByElement(fallback) {
+    fallback.style.display = 'none';
+  }
+
+  function setMobileStream(key) {
+    currentMobileStream = key;
+    Object.entries(tiles).forEach(([streamKey, refs]) => {
+      if (!refs.tile) return;
+      refs.tile.style.display = streamKey === key ? 'block' : 'none';
+    });
+    if (toggleButton) {
+      toggleButton.textContent = key === 'debrouckere'
+        ? 'Grand Place'
+        : 'De Brouckère';
+    }
+  }
+
+  function applyResponsiveVideoLayout() {
+    const isMobile = mediaQuery.matches;
+    if (isMobile) {
+      setMobileStream(currentMobileStream);
+    } else {
+      Object.values(tiles).forEach(refs => {
+        if (refs.tile) refs.tile.style.display = 'block';
+      });
+    }
+  }
+
+  attachStream(tiles.debrouckere.video, tiles.debrouckere.fallback, streams.debrouckere.url);
+  attachStream(tiles.grandplace.video, tiles.grandplace.fallback, streams.grandplace.url);
+  applyResponsiveVideoLayout();
+
+  if (toggleButton) {
+    toggleButton.addEventListener('click', () => {
+      if (!mediaQuery.matches) return;
+      setMobileStream(currentMobileStream === 'debrouckere' ? 'grandplace' : 'debrouckere');
+    });
+  }
+
+  if (typeof mediaQuery.addEventListener === 'function') {
+    mediaQuery.addEventListener('change', applyResponsiveVideoLayout);
+  } else if (typeof mediaQuery.addListener === 'function') {
+    mediaQuery.addListener(applyResponsiveVideoLayout);
+  }
+})();
 
 /* ══ UTILITAIRES ══════════════════════════════════ */
 function degToCardinal(deg) {
@@ -492,7 +763,7 @@ setInterval(fetchAnemoData, 10000);
         tension: 0.3,
         borderWidth: 2,
         pointRadius: 0,
-        pointHitRadius: 20,        // zone cliquable/survol élargie même sans point visible
+        pointHitRadius: 20,
         pointHoverRadius: 6,
         pointHoverBackgroundColor: s.color,
         pointHoverBorderColor: '#fff',
@@ -503,13 +774,10 @@ setInterval(fetchAnemoData, 10000);
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration:300 },
-
-      /* ── Interaction : toutes les séries à la même position X, sans cliquer ── */
       interaction: {
         mode: 'index',
         intersect: false
       },
-
       plugins: {
         legend: {
           position: 'top',
@@ -520,8 +788,6 @@ setInterval(fetchAnemoData, 10000);
           }
         },
         title: { display: false },
-
-        /* ── Tooltip personnalisé ─────────────────── */
         tooltip: {
           enabled: true,
           mode: 'index',
@@ -560,7 +826,6 @@ setInterval(fetchAnemoData, 10000);
           }
         }
       },
-
       scales: {
         x: {
           type: 'time',
@@ -585,7 +850,6 @@ setInterval(fetchAnemoData, 10000);
     }
   });
 
-  // Applique le thème courant dès la création
   updateChartTheme();
 
   function updateChart() {
