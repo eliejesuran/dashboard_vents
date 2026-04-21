@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="bright">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="manifest" href="manifest.json">
+  <title>Dashboard Vents – Bruxelles</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+
+<style>
+  /* ══ BRIGHT (défaut) ══════════════════════════════ */
+  :root,
+  [data-theme="bright"] {
+    --bg:        #f0f4f8;
+    --surface:   #ffffff;
+    --surface2:  #f8fafc;
+    --border:    #dde3ec;
+    --accent:    #0070cc;
+    --accent2:   #e53e3e;
+    --accent3:   #7c3aed;
+    --accent4:   #059669;
+    --text:      #1a202c;
+    --text-dim:  #64748b;
+    --shadow:    0 1px 4px rgba(0,0,0,.10);
+    --topbar-bg: #ffffff;
+    --grid-bg:   #e8edf5;
+    --chart-grid:#e2e8f0;
+    --tooltip-bg:#ffffff;
+  }
+
+  /* ══ DARK ═════════════════════════════════════════ */
+  [data-theme="dark"] {
+    --bg:        #0b0f1a;
+    --surface:   #111827;
+    --surface2:  #1a2236;
+    --border:    #1e2d45;
+    --accent:    #00c6ff;
+    --accent2:   #ff6b6b;
+    --accent3:   #a78bfa;
+    --accent4:   #34d399;
+    --text:      #e2e8f0;
+    --text-dim:  #64748b;
+    --shadow:    0 1px 8px rgba(0,0,0,.4);
+    --topbar-bg: #111827;
+    --grid-bg:   #0b0f1a;
+    --chart-grid:#1e2d45;
+    --tooltip-bg:#1a2236;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    transition: background .3s, color .3s;
+  }
+
+  /* ── TOP BAR ─────────────────────────────────────── */
+  #topbar {
+    height: 44px;
+    background: var(--topbar-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 18px;
+    flex-shrink: 0;
+    box-shadow: var(--shadow);
+    transition: background .3s, border-color .3s;
+  }
+  #topbar .logo {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  #topbar .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  #topbar .clock {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  #topbar .pulse {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent4);
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:.4; transform:scale(.7); }
+  }
+
+  /* ── THEME TOGGLE ────────────────────────────────── */
+  #themeToggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 10px 4px 7px;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+    transition: background .2s, border-color .3s;
+    user-select: none;
+  }
+  #themeToggle:hover { background: var(--border); }
+
+  .toggle-track {
+    width: 32px; height: 16px;
+    background: var(--border);
+    border-radius: 8px;
+    position: relative;
+    transition: background .3s;
+    flex-shrink: 0;
+  }
+  [data-theme="dark"] .toggle-track { background: var(--accent); }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform .3s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  [data-theme="dark"] .toggle-thumb { transform: translateX(16px); }
+
+  /* ── MAIN GRID ───────────────────────────────────── */
+  #app { display:flex; flex-direction:column; height:100vh; }
+
+  .grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    grid-template-rows: 1fr 54px 1fr;
+    gap: 8px;
+    padding: 8px;
+    min-height: 0;
+    background: var(--grid-bg);
+    transition: background .3s;
+  }
+
+  /* ── PANELS ──────────────────────────────────────── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow);
+    transition: background .3s, border-color .3s, box-shadow .3s;
+  }
+  .panel-label {
+    position: absolute;
+    top: 0; left: 0;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    background: var(--surface);
+    padding: 4px 10px;
+    border-bottom-right-radius: 6px;
+    z-index: 10;
+    text-transform: uppercase;
+    transition: background .3s;
+  }
+
+  /* ── PANEL 1 ─────────────────────────────────────── */
+  #panel1 { grid-column:1; grid-row:1; }
+  #panel1 iframe { width:100%; height:100%; border:none; flex:1; }
+
+  /* ── PANEL 2 ─────────────────────────────────────── */
+  #panel2 {
+    grid-column:1; grid-row:2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    background: var(--surface2);
+    border-left: 3px solid var(--accent);
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--text);
+    transition: background .2s, border-color .3s;
+  }
+  #panel2:hover { background: var(--border); }
+  #panel2 .bulletin-left { display:flex; align-items:center; gap:12px; }
+  #panel2 .bulletin-icon { font-size:20px; line-height:1; }
+  #panel2 .bulletin-title {
+    font-size:13px; font-weight:700; letter-spacing:1px;
+    color:var(--accent); text-transform:uppercase;
+  }
+  #panel2 .bulletin-sub { font-size:11px; color:var(--text-dim); margin-top:2px; }
+  #panel2 .bulletin-cta {
+    font-family:'Share Tech Mono', monospace; font-size:11px;
+    color:var(--accent); border:1px solid var(--accent);
+    padding:5px 14px; border-radius:4px; letter-spacing:1px;
+  }
+
+  /* ── PANEL 3 ─────────────────────────────────────── */
+  #panel3 {
+    grid-column:2; grid-row:1/4;
+    overflow-y: auto;
+    padding: 40px 12px 12px;
+  }
+  #panel3::-webkit-scrollbar { width:4px; }
+  #panel3::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  .anem-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+    transition: background .3s, border-color .3s;
+  }
+  .anem-card::before {
+    content:''; position:absolute; top:0; left:0;
+    width:3px; height:100%;
+    background: var(--card-color, var(--accent));
+  }
+  .anem-name {
+    font-family:'Share Tech Mono',monospace; font-size:10px;
+    letter-spacing:2px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px;
+  }
+  .anem-speed {
+    font-family:'Share Tech Mono',monospace; font-size:28px;
+    font-weight:bold; color:var(--card-color, var(--accent)); line-height:1; margin-bottom:4px;
+  }
+  .anem-speed span { font-size:12px; color:var(--text-dim); margin-left:3px; }
+  .anem-meta { display:flex; gap:14px; margin-top:8px; }
+  .anem-meta-item { font-size:10px; color:var(--text-dim); }
+  .anem-meta-item strong {
+    display:block; font-size:12px; color:var(--text); font-weight:500; margin-top:2px;
+  }
+  .wind-arrow { display:inline-block; transition:transform .5s ease; }
+  .anem-loading {
+    text-align:center; padding:40px 0;
+    font-family:'Share Tech Mono',monospace; font-size:11px;
+    color:var(--text-dim); letter-spacing:2px;
+  }
+
+  /* ── PANEL 4 ─────────────────────────────────────── */
+  #panel4 { grid-column:1; grid-row:3; }
+  #panel4 .chart-wrap { flex:1; min-height:0; padding:6px 12px 2px; position:relative; }
+  #chartCanvas { width:100% !important; height:100% !important; }
+
+  #chartControls {
+    flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+    gap:10px; padding:5px 0 7px;
+    border-top:1px solid var(--border); transition:border-color .3s;
+  }
+  #chartControls button {
+    background:var(--surface2); border:1px solid var(--border);
+    color:var(--accent); font-family:'Share Tech Mono',monospace;
+    font-size:13px; width:28px; height:28px; border-radius:4px;
+    cursor:pointer; transition:background .15s;
+  }
+  #chartControls button:hover { background:var(--border); }
+  #hoursDisplay {
+    font-family:'Share Tech Mono',monospace; font-size:12px;
+    color:var(--text); min-width:65px; text-align:center;
+  }
+
+  /* ── MOBILE ──────────────────────────────────────── */
+  @media (max-width:900px) {
+    body { overflow:auto; }
+    .grid { grid-template-columns:1fr; grid-template-rows:auto; height:auto; }
+    #panel1 { grid-column:1; grid-row:1; height:50vw; min-height:220px; }
+    #panel2 { grid-column:1; grid-row:2; }
+    #panel3 { grid-column:1; grid-row:3; height:auto; overflow:visible; }
+    #panel4 { grid-column:1; grid-row:4; height:55vw; min-height:260px; }
+  }
+</style>
+</head>
+
+<body>
+<div id="app">
+
+  <div id="topbar">
+    <div class="logo">⟁ Dashboard Vents — Bruxelles</div>
+    <div class="topbar-right">
+      <div class="clock"><span class="pulse"></span><span id="clockDisplay">--:--:--</span></div>
+      <div id="themeToggle" title="Basculer mode sombre / clair">
+        <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        <span id="themeLabel">DARK</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <div class="panel" id="panel1">
+      <div class="panel-label">01 · Carte INCA</div>
+      <iframe src="https://www.mymeteo.be/?target=incaBe/index.php" title="Carte INCA mymeteo.be"></iframe>
+    </div>
+
+    <a class="panel" id="panel2"
+       href="https://www.mymeteo.be/?target=textForecastsNLFR/index_fr.php"
+       target="_blank" rel="noopener">
+      <div class="bulletin-left">
+        <div class="bulletin-icon">📋</div>
+        <div>
+          <div class="bulletin-title">Bulletin de prévisions météo</div>
+          <div class="bulletin-sub">Prévisions texte · IRM / mymeteo.be</div>
+        </div>
+      </div>
+      <div class="bulletin-cta">OUVRIR →</div>
+    </a>
+
+    <div class="panel" id="panel3">
+      <div class="panel-label">03 · Anémomètres</div>
+      <div id="anemoData"><div class="anem-loading">CHARGEMENT…</div></div>
+    </div>
+
+    <div class="panel" id="panel4">
+      <div class="panel-label">04 · Historique vitesses</div>
+      <div class="chart-wrap"><canvas id="chartCanvas"></canvas></div>
+      <div id="chartControls">
+        <button id="decreaseHours">◂</button>
+        <span id="hoursDisplay">2 heures</span>
+        <button id="increaseHours">▸</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ══ UTILITAIRE CSS VAR ═══════════════════════════ */
+function getCSSVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/* ══ THEME TOGGLE ═════════════════════════════════ */
+const html        = document.documentElement;
+const themeToggle = document.getElementById('themeToggle');
+const themeLabel  = document.getElementById('themeLabel');
+
+function applyTheme(theme) {
+  html.setAttribute('data-theme', theme);
+  themeLabel.textContent = theme === 'dark' ? 'BRIGHT' : 'DARK';
+  localStorage.setItem('dashboard-theme', theme);
+  if (window.myChart) updateChartTheme();
+}
+
+const savedTheme = localStorage.getItem('dashboard-theme') || 'bright';
+applyTheme(savedTheme);
+
+themeToggle.addEventListener('click', () => {
+  applyTheme(html.getAttribute('data-theme') === 'dark' ? 'bright' : 'dark');
+});
+
+function updateChartTheme() {
+  if (!window.myChart) return;
+  const dim     = getCSSVar('--text-dim');
+  const grid    = getCSSVar('--chart-grid');
+  const text    = getCSSVar('--text');
+  const tooltip = getCSSVar('--tooltip-bg');
+  const c = window.myChart;
+  c.options.plugins.legend.labels.color      = dim;
+  c.options.plugins.tooltip.backgroundColor  = tooltip;
+  c.options.plugins.tooltip.titleColor       = text;
+  c.options.plugins.tooltip.bodyColor        = text;
+  c.options.plugins.tooltip.borderColor      = grid;
+  c.options.scales.x.grid.color             = grid;
+  c.options.scales.y.grid.color             = grid;
+  c.options.scales.x.ticks.color            = dim;
+  c.options.scales.y.ticks.color            = dim;
+  c.options.scales.y.title.color            = dim;
+  c.update('none');
+}
+
+/* ══ HORLOGE ══════════════════════════════════════ */
+function updateClock() {
+  document.getElementById('clockDisplay').textContent =
+    new Date().toLocaleTimeString('fr-BE', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ══ UTILITAIRES ══════════════════════════════════ */
+function degToCardinal(deg) {
+  return ["N","NE","E","SE","S","SW","W","NW"][Math.round(deg / 45) % 8];
+}
+
+/* ══ PANEL 3 — ANÉMOMÈTRES ════════════════════════ */
+const apiKey    = '5iNzYWvMKPj2kdj02WFCVmNtKqDTNFyYc8eI6XFRm2M=';
+const masterIds = ['593494672','743441032','673186439','799015652'];
+const stationMeta = {
+  '593494672': { name:'CONTINENTAL', deviceId:'1181746382', cssVar:'--accent2' },
+  '743441032': { name:'BIP',         deviceId:'1105200446', cssVar:'--accent'  },
+  '673186439': { name:'PALAIS 5',    deviceId:'1258292575', cssVar:'--accent3' },
+  '799015652': { name:'PATINOIRE',   deviceId:'1125124441', cssVar:'--accent4' }
+};
+
+async function fetchAnemoData() {
+  try {
+    const results = await Promise.all(masterIds.map(async masterId => {
+      const url = `https://api.crodeon.com/api/v2/reporters/${masterId}/measurements/latest`;
+      const resp = await fetch(url, { headers:{'Accept':'application/json','X-API-KEY':apiKey} });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      const meta = stationMeta[masterId];
+      let avgSpeed=null, psi=null, windDir=null;
+      (data.items||[]).forEach(item => {
+        const isDevice = item.device_id?.id == meta.deviceId;
+        const isMaster = item.device_id?.id == masterId;
+        if (item.channel_index==15 && isDevice) avgSpeed = Math.round(3.6*item.value)/10;
+        if (item.channel_index==1  && isMaster)  psi     = Math.round(item.value/10*10)/10;
+        if (item.channel_index==14 && isDevice)  windDir = item.value;
+      });
+      return { masterId, name:meta.name, cssVar:meta.cssVar, avgSpeed, psi, windDir };
+    }));
+
+    let html = '';
+    results.forEach(r => {
+      const color  = `var(${r.cssVar})`;
+      const speed  = r.avgSpeed != null ? r.avgSpeed : '—';
+      const press  = r.psi      != null ? r.psi+' hPa' : '—';
+      const dirDeg = r.windDir;
+      const dirTxt = dirDeg != null ? `${dirDeg}° (${degToCardinal(dirDeg)})` : '—';
+      const arrow  = dirDeg != null
+        ? `<span class="wind-arrow" style="transform:rotate(${dirDeg}deg)">↑</span> ` : '';
+      html += `
+        <div class="anem-card" style="--card-color:${color}">
+          <div class="anem-name">${r.name}</div>
+          <div class="anem-speed">${speed}<span>km/h</span></div>
+          <div class="anem-meta">
+            <div class="anem-meta-item">Direction<strong>${arrow}${dirTxt}</strong></div>
+            <div class="anem-meta-item">Pression<strong>${press}</strong></div>
+          </div>
+        </div>`;
+    });
+    document.getElementById('anemoData').innerHTML = html;
+  } catch(e) {
+    document.getElementById('anemoData').innerHTML =
+      `<div class="anem-loading" style="color:var(--accent2)">ERREUR: ${e.message}</div>`;
+  }
+}
+fetchAnemoData();
+setInterval(fetchAnemoData, 10000);
+
+/* ══ PANEL 4 — GRAPHIQUE ══════════════════════════ */
+(function() {
+  let hoursBack = 2;
+
+  const sensors = [
+    { masterId:'743441032', deviceId:'1105200446', channelIndex:'15', label:'BIP',
+      color:'rgba(0,112,204,1)',   fill:'rgba(0,112,204,0.10)' },
+    { masterId:'593494672', deviceId:'1181746382', channelIndex:'15', label:'CONTINENTAL',
+      color:'rgba(229,62,62,1)',   fill:'rgba(229,62,62,0.10)' },
+    { masterId:'673186439', deviceId:'1258292575', channelIndex:'15', label:'PALAIS 5',
+      color:'rgba(124,58,237,1)',  fill:'rgba(124,58,237,0.10)' },
+    { masterId:'799015652', deviceId:'1125124441', channelIndex:'15', label:'PATINOIRE',
+      color:'rgba(5,150,105,1)',   fill:'rgba(5,150,105,0.10)' }
+  ];
+
+  const ctx = document.getElementById('chartCanvas').getContext('2d');
+
+  window.myChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: sensors.map(s => ({
+        label: s.label,
+        data: [],
+        borderColor: s.color,
+        backgroundColor: s.fill,
+        fill: true,
+        tension: 0.3,
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHitRadius: 20,        // zone cliquable/survol élargie même sans point visible
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: s.color,
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2
+      }))
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration:300 },
+
+      /* ── Interaction : toutes les séries à la même position X, sans cliquer ── */
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            boxWidth: 10, padding: 12,
+            color: getCSSVar('--text-dim'),
+            font: { family:"'Share Tech Mono', monospace", size:11 }
+          }
+        },
+        title: { display: false },
+
+        /* ── Tooltip personnalisé ─────────────────── */
+        tooltip: {
+          enabled: true,
+          mode: 'index',
+          intersect: false,
+          backgroundColor: getCSSVar('--tooltip-bg'),
+          titleColor:      getCSSVar('--text'),
+          bodyColor:       getCSSVar('--text'),
+          borderColor:     getCSSVar('--chart-grid'),
+          borderWidth: 1,
+          padding: 10,
+          caretSize: 5,
+          cornerRadius: 6,
+          titleFont: { family:"'Share Tech Mono', monospace", size:11, weight:'bold' },
+          bodyFont:  { family:"'Share Tech Mono', monospace", size:11 },
+          callbacks: {
+            title(items) {
+              if (!items.length) return '';
+              const d = new Date(items[0].parsed.x);
+              return d.toLocaleTimeString('fr-BE', {
+                hour:'2-digit', minute:'2-digit', second:'2-digit'
+              });
+            },
+            label(item) {
+              const v = item.parsed.y;
+              const val = (v != null) ? v.toFixed(1) : '—';
+              return `  ${item.dataset.label} : ${val} km/h`;
+            },
+            labelColor(item) {
+              return {
+                borderColor: item.dataset.borderColor,
+                backgroundColor: item.dataset.borderColor,
+                borderRadius: 3,
+                borderWidth: 0
+              };
+            }
+          }
+        }
+      },
+
+      scales: {
+        x: {
+          type: 'time',
+          time: { unit:'hour', stepSize:1, displayFormats:{ hour:'HH:mm', minute:'HH:mm' } },
+          grid: { color: getCSSVar('--chart-grid') },
+          ticks: {
+            font: { family:"'Share Tech Mono', monospace", size:10 },
+            color: getCSSVar('--text-dim'),
+            maxRotation: 0
+          }
+        },
+        y: {
+          title: {
+            display: true, text: 'km/h',
+            color: getCSSVar('--text-dim'),
+            font: { family:"'Share Tech Mono', monospace", size:11 }
+          },
+          grid:  { color: getCSSVar('--chart-grid') },
+          ticks: { font:{ family:"'Share Tech Mono', monospace", size:10 }, color:getCSSVar('--text-dim') }
+        }
+      }
+    }
+  });
+
+  // Applique le thème courant dès la création
+  updateChartTheme();
+
+  function updateChart() {
+    const now     = new Date();
+    const startMs = now - hoursBack * 3600000;
+    window.myChart.options.scales.x.min = new Date(startMs);
+    window.myChart.options.scales.x.max = now;
+    document.getElementById('hoursDisplay').textContent =
+      hoursBack + ' heure' + (hoursBack > 1 ? 's' : '');
+    updateChartTheme();
+
+    sensors.forEach((sensor, idx) => {
+      const url = `https://api.crodeon.com/api/v2/reporters/${sensor.masterId}/sensors/${sensor.deviceId}/channels/${sensor.channelIndex}/measurements`
+        + `?start_time=${encodeURIComponent(new Date(startMs).toISOString())}`
+        + `&end_time=${encodeURIComponent(now.toISOString())}&page=0&page_size=10000`;
+      fetch(url, { headers:{'Accept':'application/json','X-API-KEY':apiKey} })
+        .then(r => r.json())
+        .then(data => {
+          const nowMs = Date.now();
+          const sMs   = nowMs - hoursBack * 3600000;
+          window.myChart.data.datasets[idx].data = (data.items||[])
+            .filter(item => { const t=new Date(item.timestamp).getTime(); return t>=sMs&&t<=nowMs; })
+            .map(item => ({ x:new Date(item.timestamp), y:Math.round(3.6*item.value)/10 }));
+          window.myChart.update('none');
+        })
+        .catch(e => console.error(`Erreur ${sensor.label}:`, e));
+    });
+  }
+
+  updateChart();
+  setInterval(updateChart, 30000);
+
+  document.getElementById('decreaseHours').addEventListener('click', () => {
+    if (hoursBack > 1) { hoursBack--; updateChart(); }
+  });
+  document.getElementById('increaseHours').addEventListener('click', () => {
+    hoursBack++; updateChart();
+  });
+})();
+</script>
+</body>
+</html>
