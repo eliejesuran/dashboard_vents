@@ -83,6 +83,14 @@
     letter-spacing: 3px;
     color: var(--accent);
     text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .topbar-logo {
+  height: 32px;
+  width: auto;
+  display: block;
   }
   #topbar .topbar-right {
     display: flex;
@@ -408,8 +416,11 @@
 <div id="app">
 
   <div id="topbar">
-    <div class="logo">⟁ Dashboard Vents — Bruxelles</div>
-    <div class="topbar-right">
+      <div class="logo">
+        <img src="logo.png" alt="Logo" id="topbar-logo" class="topbar-logo">
+        <span>⟁ Dashboard — Bruxelles</span>
+      </div>    
+      <div class="topbar-right">
       <div class="clock"><span class="pulse"></span><span id="clockDisplay">--:--:--</span></div>
       <div id="themeToggle" title="Basculer mode sombre / clair">
         <div class="toggle-track"><div class="toggle-thumb"></div></div>
@@ -510,6 +521,12 @@ function applyTheme(theme) {
   html.setAttribute('data-theme', theme);
   themeLabel.textContent = theme === 'dark' ? 'BRIGHT' : 'DARK';
   localStorage.setItem('dashboard-theme', theme);
+
+    // Swap du logo
+  const logo = document.getElementById('topbar-logo');
+  if (logo) logo.src = theme === 'dark' ? 'logo_white.png' : 'logo.png';
+
+
   if (window.myChart) updateChartTheme();
 }
 
@@ -645,8 +662,8 @@ updateClock();
     });
     if (toggleButton) {
       toggleButton.textContent = key === 'debrouckere'
-        ? 'Grand Place'
-        : 'De Brouckère';
+        ? '↔️ Grand Place'
+        : '↔️ De Brouckère';
     }
   }
 
