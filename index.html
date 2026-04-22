@@ -398,6 +398,20 @@
     cursor: default;
   }
 
+  /* ── ESTIMATED GUST ────────────────────────────────────────── */
+
+  .gust-warning {
+    color: #f59e0b !important;
+    font-weight: 600;
+  }
+
+  .gust-alert {
+    color: var(--accent2) !important;
+    font-weight: 700;
+  }
+
+
+
   /* ── MOBILE ──────────────────────────────────────── */
   @media (max-width:900px) {
     body { overflow:auto; }
@@ -701,14 +715,32 @@ function degToCardinal(deg) {
   return ["N","NE","E","SE","S","SW","W","NW"][Math.round(deg / 45) % 8];
 }
 
+function estimateGust(avgSpeed, baseFactor = 1.7) {
+  if (avgSpeed == null) return null;
+  return Math.round(avgSpeed * baseFactor * 10) / 10;
+}
+
+function gustLevel(gust) {
+  if (gust == null) return 'normal';
+  if (gust > 50) return 'alert';
+  if (gust >= 35) return 'warning';
+  return 'normal';
+}
+
+function gustColor(level) {
+  if (level === 'alert') return 'var(--accent2)';
+  if (level === 'warning') return '#f59e0b';
+  return 'var(--text)';
+}
+
 /* ══ PANEL 3 — ANÉMOMÈTRES ════════════════════════ */
 const apiKey    = '5iNzYWvMKPj2kdj02WFCVmNtKqDTNFyYc8eI6XFRm2M=';
 const masterIds = ['593494672','743441032','673186439','799015652'];
 const stationMeta = {
-  '593494672': { name:'CONTINENTAL', deviceId:'1181746382', cssVar:'--accent2' },
-  '743441032': { name:'BIP',         deviceId:'1105200446', cssVar:'--accent'  },
-  '673186439': { name:'PALAIS 5',    deviceId:'1258292575', cssVar:'--accent3' },
-  '799015652': { name:'PATINOIRE',   deviceId:'1125124441', cssVar:'--accent4' }
+  '593494672': { name:'CONTINENTAL', deviceId:'1181746382', cssVar:'--accent2' , gustFactor:1.8},
+  '743441032': { name:'BIP',         deviceId:'1105200446', cssVar:'--accent' , gustFactor:1.7 },
+  '673186439': { name:'PALAIS 5',    deviceId:'1258292575', cssVar:'--accent3' , gustFactor:1.6},
+  '799015652': { name:'PATINOIRE',   deviceId:'1125124441', cssVar:'--accent4' , gustFactor:1.7}
 };
 
 async function fetchAnemoData() {
@@ -727,7 +759,11 @@ async function fetchAnemoData() {
         if (item.channel_index==1  && isMaster)  psi     = Math.round(item.value/10*10)/10;
         if (item.channel_index==14 && isDevice)  windDir = item.value;
       });
-      return { masterId, name:meta.name, cssVar:meta.cssVar, avgSpeed, psi, windDir };
+
+      const gustFactor = meta.gustFactor || 1.7;
+      const estGust = estimateGust(avgSpeed, gustFactor);
+      const gustState = gustLevel(estGust);
+      return { masterId, name:meta.name, cssVar:meta.cssVar, avgSpeed, psi, windDir, estGust, gustState };
     }));
 
     let html = '';
@@ -737,6 +773,10 @@ async function fetchAnemoData() {
       const press  = r.psi      != null ? r.psi+' hPa' : '—';
       const dirDeg = r.windDir;
       const dirTxt = dirDeg != null ? `${dirDeg}° (${degToCardinal(dirDeg)})` : '—';
+      const gust = r.estGust != null ? r.estGust + ' km/h' : '—';
+      const gustClass =
+        r.gustState === 'alert' ? 'gust-alert' :
+        r.gustState === 'warning' ? 'gust-warning' : '';
       const arrow  = dirDeg != null
         ? `<span class="wind-arrow" style="transform:rotate(${dirDeg}deg)">↑</span> ` : '';
       html += `
@@ -746,8 +786,10 @@ async function fetchAnemoData() {
           <div class="anem-meta">
             <div class="anem-meta-item">Direction<strong>${arrow}${dirTxt}</strong></div>
             <div class="anem-meta-item">Pression<strong>${press}</strong></div>
+            <div class="anem-meta-item">Rafale estimée<strong class="${gustClass}">${gust}</strong></div>
           </div>
         </div>`;
+
     });
     document.getElementById('anemoData').innerHTML = html;
   } catch(e) {
