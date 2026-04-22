@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<meta name="author" content="Elie JESURAN">
+<meta name="copyright" content="© 2026 Elie JESURAN">
+<meta name="date" content="2026-04-22">
 <html lang="fr" data-theme="bright">
 <head>
   <meta charset="UTF-8">
@@ -380,7 +383,11 @@
   #chartControls button:hover { background:var(--border); }
   #hoursDisplay {
     font-family:'Share Tech Mono',monospace; font-size:12px;
-    color:var(--text); min-width:65px; text-align:center;
+    color:var(--text); min-width:80px; text-align:center;
+  }
+  #chartControls button:disabled {
+    opacity: 0.3;
+    cursor: default;
   }
 
   /* ── MOBILE ──────────────────────────────────────── */
@@ -736,7 +743,22 @@ setInterval(fetchAnemoData, 10000);
 
 /* ══ PANEL 4 — GRAPHIQUE ══════════════════════════ */
 (function() {
-  let hoursBack = 2;
+  // Séquence des paliers en minutes : 15, 30, 60, 120(défaut), 180, 360, 540, 720, 1080, 1440, 2160, 2880, 4320
+  const STEPS = [15, 30, 60, 120, 180, 360, 540, 720, 1080, 1440, 2160, 2880, 4320,  5760, 7200];
+  const DEFAULT_IDX = 3; // 120 min = 2h
+  let stepIdx = DEFAULT_IDX;
+
+  function stepLabel(minutes) {
+    if (minutes < 60)  return minutes + ' min';
+    if (minutes < 1440) {
+      const h = minutes / 60;
+      return h + ' heure' + (h > 1 ? 's' : '');
+    }
+    const d = minutes / 1440;
+    return d + ' jour' + (d > 1 ? 's' : '');
+  }
+
+  function currentMinutes() { return STEPS[stepIdx]; }
 
   const sensors = [
     { masterId:'743441032', deviceId:'1105200446', channelIndex:'15', label:'BIP',
@@ -853,12 +875,26 @@ setInterval(fetchAnemoData, 10000);
   updateChartTheme();
 
   function updateChart() {
+    const minutes = currentMinutes();
     const now     = new Date();
-    const startMs = now - hoursBack * 3600000;
+    const startMs = now - minutes * 60000;
+
     window.myChart.options.scales.x.min = new Date(startMs);
     window.myChart.options.scales.x.max = now;
-    document.getElementById('hoursDisplay').textContent =
-      hoursBack + ' heure' + (hoursBack > 1 ? 's' : '');
+
+    // Adapte le pas de l'axe X selon la durée choisie
+    const xScale = window.myChart.options.scales.x;
+    if (minutes <= 60)        { xScale.time.unit = 'minute'; xScale.time.stepSize = 10; }
+    else if (minutes <= 360)  { xScale.time.unit = 'hour';   xScale.time.stepSize = 1;  }
+    else if (minutes <= 1440) { xScale.time.unit = 'hour';   xScale.time.stepSize = 3;  }
+    else                      { xScale.time.unit = 'hour';   xScale.time.stepSize = 12; }
+
+    document.getElementById('hoursDisplay').textContent = stepLabel(minutes);
+
+    // Désactive les boutons aux extrémités
+    document.getElementById('decreaseHours').disabled = stepIdx === 0;
+    document.getElementById('increaseHours').disabled = stepIdx === STEPS.length - 1;
+
     updateChartTheme();
 
     sensors.forEach((sensor, idx) => {
@@ -868,8 +904,8 @@ setInterval(fetchAnemoData, 10000);
       fetch(url, { headers:{'Accept':'application/json','X-API-KEY':apiKey} })
         .then(r => r.json())
         .then(data => {
-          const nowMs = Date.now();
-          const sMs   = nowMs - hoursBack * 3600000;
+          const nowMs  = Date.now();
+          const sMs    = nowMs - minutes * 60000;
           window.myChart.data.datasets[idx].data = (data.items||[])
             .filter(item => { const t=new Date(item.timestamp).getTime(); return t>=sMs&&t<=nowMs; })
             .map(item => ({ x:new Date(item.timestamp), y:Math.round(3.6*item.value)/10 }));
@@ -883,10 +919,10 @@ setInterval(fetchAnemoData, 10000);
   setInterval(updateChart, 30000);
 
   document.getElementById('decreaseHours').addEventListener('click', () => {
-    if (hoursBack > 1) { hoursBack--; updateChart(); }
+    if (stepIdx > 0) { stepIdx--; updateChart(); }
   });
   document.getElementById('increaseHours').addEventListener('click', () => {
-    hoursBack++; updateChart();
+    if (stepIdx < STEPS.length - 1) { stepIdx++; updateChart(); }
   });
 })();
 </script>
