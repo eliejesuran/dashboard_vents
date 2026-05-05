@@ -151,7 +151,7 @@ L'axe X s'adapte automatiquement (unité minute / heure, stepSize variable).
 
 | Risque | Solution mise en place |
 |--------|----------------------|
-| Clé API exposée | Proxy Cloudflare Worker — clé stockée en secret, absente du code client. ⚠️ Révoquer l'ancienne clé Crodeon et en générer une nouvelle à faire. |
+| Clé API exposée | Proxy Cloudflare Worker — clé stockée en secret, absente du code client. Ancienne clé Crodeon révoquée et nouvelle générée. |
 
 ### ⚠️ Points restants
 
