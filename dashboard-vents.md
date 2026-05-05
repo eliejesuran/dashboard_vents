@@ -1,6 +1,6 @@
 # Dashboard Vents — Bruxelles
 
-> Auteur : Elie JESURAN · Date : 2026-04-22  
+> Auteur : Elie JESURAN · Créé : 2026-04-22 · Mis à jour : 2026-05-05  
 > Fichier source : `vents.html` · Langue UI : Français
 
 ---
@@ -69,8 +69,8 @@ Deux boutons-liens externes :
 
 ### API Crodeon
 
-- **Base URL** : `https://api.crodeon.com/api/v2/`
-- **Authentification** : header `X-API-KEY`
+- **Base URL** : `https://rough-block-b4fe.e-jesuran.workers.dev/api/v2/` (proxy Cloudflare Worker)
+- **Authentification** : gérée côté Worker via secret `CRODEON_API_KEY` (clé absente du code client)
 - **Endpoint utilisé** : `reporters/{masterId}/measurements/latest`
 - **Refresh** : toutes les 10 secondes
 
@@ -147,13 +147,18 @@ L'axe X s'adapte automatiquement (unité minute / heure, stepSize variable).
 
 ## Sécurité
 
-### ⚠️ Points à traiter
+### ✅ Réalisé
+
+| Risque | Solution mise en place |
+|--------|----------------------|
+| Clé API exposée | Proxy Cloudflare Worker — clé stockée en secret, absente du code client. ⚠️ Révoquer l'ancienne clé Crodeon et en générer une nouvelle à faire. |
+
+### ⚠️ Points restants
 
 | Risque | Description | Action recommandée |
 |--------|-------------|-------------------|
-| Clé API exposée | `apiKey` en clair dans le JS côté client | Proxifier via un backend (ex. Cloudflare Worker, service Node.js) qui injecte la clé côté serveur |
-| Streams HLS non authentifiés | Les URLs `.m3u8` sont en clair dans le HTML | Acceptable si les streams sont publics ; sinon, générer des URLs signées côté serveur |
-| Pas de CSP | Aucune Content-Security-Policy déclarée | Ajouter un header CSP restrictif (autoriser uniquement les domaines tiers connus) |
+| Streams HLS non authentifiés | Les URLs `.m3u8` sont en clair dans le HTML | Acceptable (streams publics) |
+| Pas de CSP | Aucune Content-Security-Policy déclarée | Ajouter un header CSP restrictif |
 | Dépendances CDN | Chart.js, HLS.js chargés depuis jsdelivr sans SRI | Ajouter des attributs `integrity` (Subresource Integrity) |
 
 ---
@@ -167,13 +172,20 @@ L'axe X s'adapte automatiquement (unité minute / heure, stepSize variable).
 | `logo_white.png` | Logo topbar (thème dark) |
 | `manifest.json` | PWA manifest |
 
+## Infrastructure
+
+| Service | Usage |
+|---------|-------|
+| Cloudflare Worker `rough-block-b4fe.e-jesuran.workers.dev` | Proxy API Crodeon — injecte la clé côté serveur, expose les endpoints sans authentification client |
+
 ---
 
 ## Backlog des améliorations
 
 | Priorité | Tâche | Panel |
 |----------|-------|-------|
-| 🔴 Haute | Sécuriser la clé API (proxy backend) | — |
+| ✅ Fait | Sécuriser la clé API (Cloudflare Worker proxy) | — |
+| 🔴 Haute | Révoquer l'ancienne clé Crodeon + générer un nouveau token | — |
 | 🔴 Haute | Inverser l'ordre Grand Place / De Brouckère | 01 |
 | 🟡 Moyenne | Refresh automatique des streams HLS (~1 h) | 01 |
 | 🟡 Moyenne | Afficher le statut opérationnel de chaque anémomètre | 03 |

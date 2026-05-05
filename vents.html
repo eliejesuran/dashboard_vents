@@ -734,7 +734,6 @@ function gustColor(level) {
 }
 
 /* ══ PANEL 3 — ANÉMOMÈTRES ════════════════════════ */
-const apiKey    = '5iNzYWvMKPj2kdj02WFCVmNtKqDTNFyYc8eI6XFRm2M=';
 const masterIds = ['593494672','743441032','673186439','799015652'];
 const stationMeta = {
   '593494672': { name:'CONTINENTAL', deviceId:'1181746382', cssVar:'--accent2' , gustFactor:1.8},
@@ -746,8 +745,8 @@ const stationMeta = {
 async function fetchAnemoData() {
   try {
     const results = await Promise.all(masterIds.map(async masterId => {
-      const url = `https://api.crodeon.com/api/v2/reporters/${masterId}/measurements/latest`;
-      const resp = await fetch(url, { headers:{'Accept':'application/json','X-API-KEY':apiKey} });
+      const url = `https://rough-block-b4fe.e-jesuran.workers.dev/api/v2/reporters/${masterId}/measurements/latest`;
+      const resp = await fetch(url, { headers:{'Accept':'application/json'} });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       const meta = stationMeta[masterId];
@@ -957,10 +956,10 @@ setInterval(fetchAnemoData, 10000);
     updateChartTheme();
 
     sensors.forEach((sensor, idx) => {
-      const url = `https://api.crodeon.com/api/v2/reporters/${sensor.masterId}/sensors/${sensor.deviceId}/channels/${sensor.channelIndex}/measurements`
+      const url = `https://rough-block-b4fe.e-jesuran.workers.dev/api/v2/reporters/${sensor.masterId}/sensors/${sensor.deviceId}/channels/${sensor.channelIndex}/measurements`
         + `?start_time=${encodeURIComponent(new Date(startMs).toISOString())}`
         + `&end_time=${encodeURIComponent(now.toISOString())}&page=0&page_size=10000`;
-      fetch(url, { headers:{'Accept':'application/json','X-API-KEY':apiKey} })
+      fetch(url, { headers:{'Accept':'application/json'} })
         .then(r => r.json())
         .then(data => {
           const nowMs  = Date.now();
