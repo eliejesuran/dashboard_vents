@@ -185,7 +185,7 @@ L'axe X s'adapte automatiquement (unité minute / heure, stepSize variable).
 | Priorité | Tâche | Panel |
 |----------|-------|-------|
 | ✅ Fait | Sécuriser la clé API (Cloudflare Worker proxy) | — |
-| 🔴 Haute | Révoquer l'ancienne clé Crodeon + générer un nouveau token | — |
+| ✅ Fait | Révoquer l'ancienne clé Crodeon + générer un nouveau token | — |
 | 🔴 Haute | Inverser l'ordre Grand Place / De Brouckère | 01 |
 | 🟡 Moyenne | Refresh automatique des streams HLS (~1 h) | 01 |
 | 🟡 Moyenne | Afficher le statut opérationnel de chaque anémomètre | 03 |
