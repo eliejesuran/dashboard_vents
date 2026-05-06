@@ -372,6 +372,23 @@
     color:var(--text-dim); letter-spacing:2px;
   }
 
+  .anem-card.offline {
+  background: color-mix(in srgb, var(--accent2) 8%, var(--surface2));
+  border-color: color-mix(in srgb, var(--accent2) 30%, var(--border));
+  }
+  
+  .anem-status {
+    position: absolute;
+    top: 10px; right: 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 2px 7px;
+    border-radius: 10px;
+  }
+  .anem-status.online  { background: color-mix(in srgb, var(--accent4) 15%, transparent); color: var(--accent4); }
+  .anem-status.offline { background: color-mix(in srgb, var(--accent2) 15%, transparent); color: var(--accent2); }
+
   /* ── PANEL 4 ─────────────────────────────────────── */
   #panel4 { grid-column:1; grid-row:1; }
   #panel4 .chart-wrap { flex:1; min-height:0; padding:6px 12px 2px; position:relative; }
@@ -451,16 +468,6 @@
         <button class="stream-button" id="streamToggle">Grand Place / De Brouckère</button>
       </div>
       <div class="video-layout desktop-mode" id="videoLayout">
-        <div class="video-tile" data-stream="debrouckere">
-          <div class="video-title">De Brouckère</div>
-          <video id="liveVideoA" autoplay muted playsinline controls></video>
-          <div class="video-fallback" id="videoFallbackA">
-            <div>
-              Flux vidéo indisponible.<br>
-              <a href="https://livecam.brucity.be/LiveBrusselsWebcams/streams/vTm9wYDlwkAEO8mH1746783018793.m3u8" target="_blank" rel="noopener">Ouvrir le flux directement</a>
-            </div>
-          </div>
-        </div>
         <div class="video-tile" data-stream="grandplace">
           <div class="video-title">Grand Place</div>
           <video id="liveVideoB" autoplay muted playsinline controls></video>
@@ -468,6 +475,16 @@
             <div>
               Flux vidéo indisponible.<br>
               <a href="https://livecam.brucity.be/LiveBrusselsWebcams/streams/fDdnnEmqOn6Kyy3E1701416388577.m3u8" target="_blank" rel="noopener">Ouvrir le flux directement</a>
+            </div>
+          </div>
+        </div>
+        <div class="video-tile" data-stream="debrouckere">
+          <div class="video-title">De Brouckère</div>
+          <video id="liveVideoA" autoplay muted playsinline controls></video>
+          <div class="video-fallback" id="videoFallbackA">
+            <div>
+              Flux vidéo indisponible.<br>
+              <a href="https://livecam.brucity.be/LiveBrusselsWebcams/streams/vTm9wYDlwkAEO8mH1746783018793.m3u8" target="_blank" rel="noopener">Ouvrir le flux directement</a>
             </div>
           </div>
         </div>
@@ -582,32 +599,32 @@ updateClock();
 /* ══ VIDEO LIVE HLS ═══════════════════════════════ */
 (function initLiveVideo() {
   const streams = {
-    debrouckere: {
-      url: 'https://livecam.brucity.be/LiveBrusselsWebcams/streams/fDdnnEmqOn6Kyy3E1701416388577.m3u8',
-      label: 'De Brouckère'
-    },
     grandplace: {
       url: 'https://livecam.brucity.be/LiveBrusselsWebcams/streams/vTm9wYDlwkAEO8mH1746783018793.m3u8',
       label: 'Grand Place'
+    },
+    debrouckere: {
+      url: 'https://livecam.brucity.be/LiveBrusselsWebcams/streams/fDdnnEmqOn6Kyy3E1701416388577.m3u8',
+      label: 'De Brouckère'
     }
   };
 
   const tiles = {
+      grandplace: {
+      tile: document.querySelector('.video-tile[data-stream="grandplace"]'),
+      video: document.getElementById('liveVideoB'),
+      fallback: document.getElementById('videoFallbackB')
+    },
     debrouckere: {
       tile: document.querySelector('.video-tile[data-stream="debrouckere"]'),
       video: document.getElementById('liveVideoA'),
       fallback: document.getElementById('videoFallbackA')
-    },
-    grandplace: {
-      tile: document.querySelector('.video-tile[data-stream="grandplace"]'),
-      video: document.getElementById('liveVideoB'),
-      fallback: document.getElementById('videoFallbackB')
     }
   };
 
   const toggleButton = document.getElementById('streamToggle');
   const mediaQuery = window.matchMedia('(max-width: 900px)');
-  let currentMobileStream = 'debrouckere';
+  let currentMobileStream = 'grandplace';
 
   function showFallback(key) {
     const fallback = tiles[key]?.fallback;
@@ -663,6 +680,18 @@ updateClock();
 
     fallback.style.display = 'flex';
   }
+
+  function scheduleRefresh(key) {
+    setTimeout(() => {
+      const refs = tiles[key];
+      attachStream(refs.video, refs.fallback, streams[key].url);
+      scheduleRefresh(key); // replanifie
+    }, 90 * 60 * 1000); // 90 minutes
+  }
+
+scheduleRefresh('grandplace');
+scheduleRefresh('debrouckere');
+
 
   function hideFallbackByElement(fallback) {
     fallback.style.display = 'none';
@@ -745,24 +774,36 @@ const stationMeta = {
 async function fetchAnemoData() {
   try {
     const results = await Promise.all(masterIds.map(async masterId => {
-      const url = `https://rough-block-b4fe.e-jesuran.workers.dev/api/v2/reporters/${masterId}/measurements/latest`;
-      const resp = await fetch(url, { headers:{'Accept':'application/json'} });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
       const meta = stationMeta[masterId];
-      let avgSpeed=null, psi=null, windDir=null;
-      (data.items||[]).forEach(item => {
+
+      // Fetch measurements + state en parallèle
+      const [measResp, sensResp] = await Promise.all([
+        fetch(`https://rough-block-b4fe.e-jesuran.workers.dev/api/v2/reporters/${masterId}/measurements/latest`,
+          { headers: { 'Accept': 'application/json' } }),
+        fetch(`https://rough-block-b4fe.e-jesuran.workers.dev/api/v2/reporters/${masterId}/sensors`,
+          { headers: { 'Accept': 'application/json' } })
+      ]);
+
+      const data     = await measResp.json();
+      const sensData = await sensResp.json();
+
+      // État : on prend le state du sensor externe (CONNECTOR_1)
+      const sensorEntry = (sensData.sensors || []).find(s => s.crlink === 'CONNECTOR_1');
+      const state = sensorEntry?.state ?? 'UNKNOWN';
+
+      let avgSpeed = null, psi = null, windDir = null;
+      (data.items || []).forEach(item => {
         const isDevice = item.device_id?.id == meta.deviceId;
         const isMaster = item.device_id?.id == masterId;
-        if (item.channel_index==15 && isDevice) avgSpeed = Math.round(3.6*item.value)/10;
-        if (item.channel_index==1  && isMaster)  psi     = Math.round(item.value/10*10)/10;
-        if (item.channel_index==14 && isDevice)  windDir = item.value;
+        if (item.channel_index == 15 && isDevice) avgSpeed = Math.round(3.6 * item.value) / 10;
+        if (item.channel_index == 1  && isMaster)  psi     = Math.round(item.value / 10 * 10) / 10;
+        if (item.channel_index == 14 && isDevice)  windDir = item.value;
       });
 
       const gustFactor = meta.gustFactor || 1.7;
-      const estGust = estimateGust(avgSpeed, gustFactor);
-      const gustState = gustLevel(estGust);
-      return { masterId, name:meta.name, cssVar:meta.cssVar, avgSpeed, psi, windDir, estGust, gustState };
+      const estGust    = estimateGust(avgSpeed, gustFactor);
+      const gustState  = gustLevel(estGust);
+      return { masterId, name: meta.name, cssVar: meta.cssVar, avgSpeed, psi, windDir, estGust, gustState, state };
     }));
 
     let html = '';
@@ -778,9 +819,15 @@ async function fetchAnemoData() {
         r.gustState === 'warning' ? 'gust-warning' : '';
       const arrow  = dirDeg != null
         ? `<span class="wind-arrow" style="transform:rotate(${dirDeg}deg)">↑</span> ` : '';
+      const isOffline  = r.state !== 'ONLINE';
+      const cardClass  = isOffline ? 'anem-card offline' : 'anem-card';
+      const statusClass = isOffline ? 'offline' : 'online';
+      const statusLabel = isOffline ? 'OFFLINE' : 'ONLINE';
+
       html += `
-        <div class="anem-card" style="--card-color:${color}">
+        <div class="${cardClass}" style="--card-color:${color}">
           <div class="anem-name">${r.name}</div>
+          <span class="anem-status ${statusClass}">${statusLabel}</span>
           <div class="anem-speed">${speed}<span>km/h</span></div>
           <div class="anem-meta">
             <div class="anem-meta-item">Direction<strong>${arrow}${dirTxt}</strong></div>

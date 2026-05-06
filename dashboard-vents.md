@@ -1,6 +1,6 @@
 # Dashboard Vents — Bruxelles
 
-> Auteur : Elie JESURAN · Créé : 2026-04-22 · Mis à jour : 2026-05-05  
+> Auteur : Elie JESURAN · Créé : 2026-04-22 · Mis à jour : 2026-05-06  
 > Fichier source : `vents.html` · Langue UI : Français
 
 ---
@@ -45,12 +45,10 @@ Deux flux HLS diffusés via `hls.js` (fallback natif pour Safari).
 | De Brouckère | `debrouckere` | `…/fDdnnEmqOn6Kyy3E1701416388577.m3u8` |
 | Grand Place  | `grandplace`  | `…/vTm9wYDlwkAEO8mH1746783018793.m3u8` |
 
-**Mobile** : un seul flux visible à la fois, bouton de bascule `↔️`.  
-**Fallback** : si le flux échoue, lien direct vers le `.m3u8` affiché sur fond sombre.
-
-### ⚠️ Améliorations prévues
-- **Inverser l'ordre** : Grand Place en premier, De Brouckère en second.
-- **Refresh automatique** (~1 h) : le flux HLS se coupe après un certain temps ; prévoir un `setInterval` qui re-initialise `hls.loadSource()` / `hls.attachMedia()`.
+**Ordre d'affichage** : Grand Place en premier, De Brouckère en second.  
+**Mobile** : un seul flux visible à la fois, bouton de bascule `↔️`. Stream par défaut : Grand Place.  
+**Fallback** : si le flux échoue, lien direct vers le `.m3u8` affiché sur fond sombre.  
+**Refresh automatique** : re-initialisation du flux toutes les 55 minutes via `setTimeout` récursif.
 
 ---
 
@@ -113,7 +111,16 @@ Seuils d'alerte rafale :
 
 ### ⚠️ Améliorations prévues
 - **Connecter l'API des rafales réelles** dès qu'elle sera disponible (remplacer l'estimation par la valeur directe du channel dédié).
-- **Indicateur de statut de l'anémomètre** : l'API expose un état (fonctionnel / hors-ligne) — l'afficher sur chaque carte (badge coloré ou icône).
+
+### Statut opérationnel
+
+Endpoint supplémentaire appelé en parallèle : `reporters/{masterId}/sensors`  
+Le champ `sensors[].state` (source : `crlink = CONNECTOR_1`) détermine l'état affiché.
+
+| État API | Rendu carte |
+|----------|-------------|
+| `ONLINE`  | Badge vert discret, carte normale |
+| `OFFLINE` / autre | Badge rouge, fond légèrement teinté rouge |
 
 ---
 
@@ -151,7 +158,7 @@ L'axe X s'adapte automatiquement (unité minute / heure, stepSize variable).
 
 | Risque | Solution mise en place |
 |--------|----------------------|
-| Clé API exposée | Proxy Cloudflare Worker — clé stockée en secret, absente du code client. Ancienne clé Crodeon révoquée et nouvelle générée. |
+| Clé API exposée | Proxy Cloudflare Worker — clé stockée en secret, absente du code client. Ancienne clé révoquée, nouveau token en place. |
 
 ### ⚠️ Points restants
 
@@ -185,9 +192,9 @@ L'axe X s'adapte automatiquement (unité minute / heure, stepSize variable).
 | Priorité | Tâche | Panel |
 |----------|-------|-------|
 | ✅ Fait | Sécuriser la clé API (Cloudflare Worker proxy) | — |
-| ✅ Fait | Révoquer l'ancienne clé Crodeon + générer un nouveau token | — |
-| 🔴 Haute | Inverser l'ordre Grand Place / De Brouckère | 01 |
-| 🟡 Moyenne | Refresh automatique des streams HLS (~1 h) | 01 |
-| 🟡 Moyenne | Afficher le statut opérationnel de chaque anémomètre | 03 |
+| ✅ Fait | Révoquer l'ancienne clé Crodeon + nouveau token | — |
+| ✅ Fait | Inverser l'ordre Grand Place / De Brouckère | 01 |
+| ✅ Fait | Refresh automatique des streams HLS (~55 min) | 01 |
+| ✅ Fait | Afficher le statut opérationnel de chaque anémomètre | 03 |
 | 🟢 Basse | Connecter l'API rafales réelles quand disponible | 03 |
 | 🟢 Basse | Ajouter CSP + SRI sur les dépendances CDN | — |
