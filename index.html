@@ -867,13 +867,13 @@ setInterval(fetchAnemoData, 10000);
 
   const sensors = [
     { masterId:'743441032', deviceId:'1105200446', channelIndex:'15', label:'BIP',
-      color:'rgba(0,112,204,1)',   fill:'rgba(0,112,204,0.10)' },
+      color:'rgba(0,112,204,1)',   fill:'rgba(0,112,204,0.10)' ,dash : []},
     { masterId:'593494672', deviceId:'1181746382', channelIndex:'15', label:'CONTINENTAL',
-      color:'rgba(229,62,62,1)',   fill:'rgba(229,62,62,0.10)' },
+      color:'rgba(229,62,62,1)',   fill:'rgba(229,62,62,0.10)',dash : [2,1]},
     { masterId:'673186439', deviceId:'1258292575', channelIndex:'15', label:'PALAIS 5',
-      color:'rgba(124,58,237,1)',  fill:'rgba(124,58,237,0.10)' },
+      color:'rgba(124,58,237,1)',  fill:'rgba(124,58,237,0.10)',dash : [1,1] },
     { masterId:'799015652', deviceId:'1125124441', channelIndex:'15', label:'PATINOIRE',
-      color:'rgba(5,150,105,1)',   fill:'rgba(5,150,105,0.10)' }
+      color:'rgba(5,150,105,1)',   fill:'rgba(5,150,105,0.10)' ,dash : [4,1]}
   ];
 
   const ctx = document.getElementById('chartCanvas').getContext('2d');
@@ -886,8 +886,9 @@ setInterval(fetchAnemoData, 10000);
         data: [],
         borderColor: s.color,
         backgroundColor: s.fill,
+        borderDash: s.dash,
         fill: true,
-        tension: 0.3,
+        tension: 0.1,
         borderWidth: 2,
         pointRadius: 0,
         pointHitRadius: 20,
