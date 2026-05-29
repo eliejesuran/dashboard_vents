@@ -415,7 +415,7 @@
     cursor: default;
   }
 
-  /* ── ESTIMATED GUST ────────────────────────────────────────── */
+  /* ── GUST ALERT ────────────────────────────────────────── */
 
   .gust-warning {
     color: #f59e0b !important;
@@ -744,11 +744,6 @@ function degToCardinal(deg) {
   return ["N","NE","E","SE","S","SW","W","NW"][Math.round(deg / 45) % 8];
 }
 
-function estimateGust(avgSpeed, baseFactor = 1.7) {
-  if (avgSpeed == null) return null;
-  return Math.round(avgSpeed * baseFactor * 10) / 10;
-}
-
 function gustLevel(gust) {
   if (gust == null) return 'normal';
   if (gust > 50) return 'alert';
@@ -756,19 +751,13 @@ function gustLevel(gust) {
   return 'normal';
 }
 
-function gustColor(level) {
-  if (level === 'alert') return 'var(--accent2)';
-  if (level === 'warning') return '#f59e0b';
-  return 'var(--text)';
-}
-
 /* ══ PANEL 3 — ANÉMOMÈTRES ════════════════════════ */
 const masterIds = ['593494672','743441032','673186439','799015652'];
 const stationMeta = {
-  '593494672': { name:'CONTINENTAL', deviceId:'1181746382', cssVar:'--accent2' , gustFactor:1.8},
-  '743441032': { name:'BIP',         deviceId:'1105200446', cssVar:'--accent' , gustFactor:1.7 },
-  '673186439': { name:'PALAIS 5',    deviceId:'1258292575', cssVar:'--accent3' , gustFactor:1.6},
-  '799015652': { name:'PATINOIRE',   deviceId:'1125124441', cssVar:'--accent4' , gustFactor:1.7}
+  '593494672': { name:'CONTINENTAL', deviceId:'1181746382', cssVar:'--accent2' },
+  '743441032': { name:'BIP',         deviceId:'1105200446', cssVar:'--accent'  },
+  '673186439': { name:'PALAIS 5',    deviceId:'1258292575', cssVar:'--accent3' },
+  '799015652': { name:'PATINOIRE',   deviceId:'1125124441', cssVar:'--accent4' }
 };
 
 async function fetchAnemoData() {
@@ -791,29 +780,28 @@ async function fetchAnemoData() {
       const sensorEntry = (sensData.sensors || []).find(s => s.crlink === 'CONNECTOR_1');
       const state = sensorEntry?.state ?? 'UNKNOWN';
 
-      let avgSpeed = null, psi = null, windDir = null;
+      let avgSpeed = null, peakGust = null, psi = null, windDir = null;
       (data.items || []).forEach(item => {
         const isDevice = item.device_id?.id == meta.deviceId;
         const isMaster = item.device_id?.id == masterId;
         if (item.channel_index == 15 && isDevice) avgSpeed = Math.round(3.6 * item.value) / 10;
+        if (item.channel_index == 12 && isDevice) peakGust = Math.round(3.6 * item.value) / 10;
         if (item.channel_index == 1  && isMaster)  psi     = Math.round(item.value / 10 * 10) / 10;
         if (item.channel_index == 14 && isDevice)  windDir = item.value;
       });
 
-      const gustFactor = meta.gustFactor || 1.7;
-      const estGust    = estimateGust(avgSpeed, gustFactor);
-      const gustState  = gustLevel(estGust);
-      return { masterId, name: meta.name, cssVar: meta.cssVar, avgSpeed, psi, windDir, estGust, gustState, state };
+      const gustState  = gustLevel(peakGust);
+      return { masterId, name: meta.name, cssVar: meta.cssVar, avgSpeed, peakGust, psi, windDir, gustState, state };
     }));
 
     let html = '';
     results.forEach(r => {
       const color  = `var(${r.cssVar})`;
-      const speed  = r.avgSpeed != null ? r.avgSpeed : '—';
+      const gust   = r.peakGust != null ? r.peakGust : '—';
+      const avg    = r.avgSpeed != null ? r.avgSpeed + ' km/h' : '—';
       const press  = r.psi      != null ? r.psi+' hPa' : '—';
       const dirDeg = r.windDir;
       const dirTxt = dirDeg != null ? `${dirDeg}° (${degToCardinal(dirDeg)})` : '—';
-      const gust = r.estGust != null ? r.estGust + ' km/h' : '—';
       const gustClass =
         r.gustState === 'alert' ? 'gust-alert' :
         r.gustState === 'warning' ? 'gust-warning' : '';
@@ -828,11 +816,11 @@ async function fetchAnemoData() {
         <div class="${cardClass}" style="--card-color:${color}">
           <div class="anem-name">${r.name}</div>
           <span class="anem-status ${statusClass}">${statusLabel}</span>
-          <div class="anem-speed">${speed}<span>km/h</span></div>
+          <div class="anem-speed ${gustClass}">${gust}<span>km/h</span></div>
           <div class="anem-meta">
             <div class="anem-meta-item">Direction<strong>${arrow}${dirTxt}</strong></div>
             <div class="anem-meta-item">Pression<strong>${press}</strong></div>
-            <div class="anem-meta-item">Rafale estimée<strong class="${gustClass}">${gust}</strong></div>
+            <div class="anem-meta-item">Moy.<strong>${avg}</strong></div>
           </div>
         </div>`;
 
@@ -866,13 +854,13 @@ setInterval(fetchAnemoData, 10000);
   function currentMinutes() { return STEPS[stepIdx]; }
 
   const sensors = [
-    { masterId:'743441032', deviceId:'1105200446', channelIndex:'15', label:'BIP',
+    { masterId:'743441032', deviceId:'1105200446', channelIndex:'12', label:'BIP',
       color:'rgba(0,112,204,1)',   fill:'rgba(0,112,204,0.10)' ,dash : []},
-    { masterId:'593494672', deviceId:'1181746382', channelIndex:'15', label:'CONTINENTAL',
+    { masterId:'593494672', deviceId:'1181746382', channelIndex:'12', label:'CONTINENTAL',
       color:'rgba(229,62,62,1)',   fill:'rgba(229,62,62,0.10)',dash : [2,1]},
-    { masterId:'673186439', deviceId:'1258292575', channelIndex:'15', label:'PALAIS 5',
+    { masterId:'673186439', deviceId:'1258292575', channelIndex:'12', label:'PALAIS 5',
       color:'rgba(124,58,237,1)',  fill:'rgba(124,58,237,0.10)',dash : [1,1] },
-    { masterId:'799015652', deviceId:'1125124441', channelIndex:'15', label:'PATINOIRE',
+    { masterId:'799015652', deviceId:'1125124441', channelIndex:'12', label:'PATINOIRE',
       color:'rgba(5,150,105,1)',   fill:'rgba(5,150,105,0.10)' ,dash : [4,1]}
   ];
 

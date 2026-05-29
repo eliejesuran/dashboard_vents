@@ -85,22 +85,16 @@ Deux boutons-liens externes :
 
 | Channel index | Donnée | Source |
 |---------------|--------|--------|
-| 15 (device)   | Vitesse vent moy. (m/s → km/h) | device_id |
+| 12 (device)   | Rafale max (m/s → km/h) — `WIND_PEAK_GUST` | device_id |
+| 15 (device)   | Vitesse moy. (m/s → km/h) — affiché en meta | device_id |
 | 14 (device)   | Direction (degrés) | device_id |
 | 1  (master)   | Pression atm. (×0.1 hPa) | master_id |
 
-### Calcul de la rafale estimée
+### Affichage carte
 
-```
-rafale = vitesse_moy × gustFactor   (arrondi 1 décimale)
-```
-
-| Station | gustFactor |
-|---------|-----------|
-| CONTINENTAL | 1.8 |
-| BIP         | 1.7 |
-| PALAIS 5    | 1.6 |
-| PATINOIRE   | 1.7 |
+- **`anem-speed`** : rafale (channel 12, m/s → km/h)
+- **Meta "Moy."** : vitesse moyenne (channel 15)
+- Les seuils d'alerte s'appliquent à la rafale réelle
 
 Seuils d'alerte rafale :
 
@@ -108,9 +102,6 @@ Seuils d'alerte rafale :
 |--------|-----------|---------|
 | ≥ 35 km/h | `gust-warning` | Ambre `#f59e0b` |
 | > 50 km/h | `gust-alert`   | Rouge `--accent2` |
-
-### ⚠️ Améliorations prévues
-- **Connecter l'API des rafales réelles** dès qu'elle sera disponible (remplacer l'estimation par la valeur directe du channel dédié).
 
 ### Statut opérationnel
 
@@ -128,7 +119,7 @@ Le champ `sensors[].state` (source : `crlink = CONNECTOR_1`) détermine l'état 
 
 ### Source de données
 
-Endpoint : `reporters/{masterId}/sensors/{deviceId}/channels/15/measurements`  
+Endpoint : `reporters/{masterId}/sensors/{deviceId}/channels/12/measurements`  
 Paramètres : `start_time`, `end_time`, `page=0`, `page_size=10000`  
 Refresh : toutes les 30 secondes
 
@@ -269,15 +260,16 @@ export default {
 
 ## Backlog des améliorations
 
-| Priorité | Tâche | Panel |
-|----------|-------|-------|
-| ✅ Fait | Sécuriser la clé API (Cloudflare Worker proxy) | — |
-| ✅ Fait | Révoquer l'ancienne clé Crodeon + nouveau token | — |
-| ✅ Fait | Inverser l'ordre Grand Place / De Brouckère | 01 |
-| ✅ Fait | Refresh automatique des streams HLS (~55 min) | 01 |
-| ✅ Fait | Afficher le statut opérationnel de chaque anémomètre | 03 |
-| ✅ Fait | Courbes moins arrondies (`tension: 0.1`) + `borderDash` par station | 04 |
-| 🔵 En test | Cache Worker (Cache API Cloudflare, TTL 10 s / 30 s) | — |
-| 🟡 Moyenne | Refonte layout Panel 04 (chips, ligne seuil 35 km/h, split stats) | 04 |
-| 🟢 Basse | Connecter l'API rafales réelles quand disponible | 03 |
-| 🟢 Basse | Ajouter CSP + SRI sur les dépendances CDN | — |
+| Numéro | Priorité | Tâche | Panel | Comm |
+|--------|----------|-------|-------|------|
+| I1 | ✅ Fait | Sécuriser la clé API (Cloudflare Worker proxy) | — |------|
+| I2 | ✅ Fait | Révoquer l'ancienne clé Crodeon + nouveau token | — |------|
+| U1 | ✅ Fait | Inverser l'ordre Grand Place / De Brouckère | 01 |------|
+| U2 | ✅ Fait | Refresh automatique des streams HLS (~55 min) | 01 |------|
+| U3 | ✅ Fait | Afficher le statut opérationnel de chaque anémomètre | 03 |------|
+| U4 | ✅ Fait | Courbes moins arrondies (`tension: 0.1`) + `borderDash` par station | 04 |------|
+| I3 | ✅ Fait | Cache Worker (Cache API Cloudflare, TTL 10 s / 30 s) | — |------|
+| U5 | 🟡 Moyenne | Refonte layout Panel 04 (chips, ligne seuil 35 km/h, split stats) | 04 |------|
+| U6 | ✅ Fait | Connecter l'API rafales réelles (channel 12) — estimation supprimée | 03/04 | anem-speed = rafale réelle, Moy. en meta, graphique sur channel 12 |
+| U7 | 🟡 Moyenne | Bascule Rafales / Moyenne dans le graphique (channel 12 ↔ 15) | 04 | Bouton ou toggle dans les contrôles du panel |
+| I4 | 🟢 Basse | Ajouter CSP + SRI sur les dépendances CDN | — | |
