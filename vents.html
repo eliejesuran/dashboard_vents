@@ -360,10 +360,18 @@
     font-weight:bold; color:var(--card-color, var(--accent)); line-height:1; margin-bottom:4px;
   }
   .anem-speed span { font-size:12px; color:var(--text-dim); margin-left:3px; }
+  .anem-speed .anem-speed-label {
+    font-size:9px; letter-spacing:1.5px; color:var(--text-dim);
+    text-transform:uppercase; margin-left:6px; font-weight:400;
+    vertical-align: middle;
+  }
   .anem-meta { display:flex; gap:14px; margin-top:8px; }
   .anem-meta-item { font-size:10px; color:var(--text-dim); }
   .anem-meta-item strong {
     display:block; font-size:12px; color:var(--text); font-weight:500; margin-top:2px;
+  }
+  .anem-meta-item.avg-speed strong {
+    font-size:16px; font-weight:600;
   }
   .wind-arrow { display:inline-block; transition:transform .5s ease; }
   .anem-loading {
@@ -414,6 +422,19 @@
     opacity: 0.3;
     cursor: default;
   }
+  #channelToggle {
+    position: absolute;
+    top: 0; right: 0;
+    font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:1px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-top: none; border-right: none;
+    border-bottom-left-radius: 6px;
+    padding:4px 10px; height:24px; cursor:pointer;
+    color:var(--text-dim); transition:background .15s, color .2s, border-color .3s;
+    z-index: 10;
+  }
+  #channelToggle.active-gust  { color:var(--accent);  border-color:var(--accent);  }
+  #channelToggle.active-avg   { color:var(--accent3); border-color:var(--accent3); }
 
   /* ── GUST ALERT ────────────────────────────────────────── */
 
@@ -525,7 +546,8 @@
     </div>
 
     <div class="panel" id="panel4">
-      <div class="panel-label">01 · Historique vitesses</div>
+      <div class="panel-label" id="panel4Label">01 · TOP SPEED</div>
+      <button id="channelToggle" class="active-gust">TOP</button>
       <div class="chart-wrap"><canvas id="chartCanvas"></canvas></div>
       <div id="chartControls">
         <button id="decreaseHours">◂</button>
@@ -816,11 +838,11 @@ async function fetchAnemoData() {
         <div class="${cardClass}" style="--card-color:${color}">
           <div class="anem-name">${r.name}</div>
           <span class="anem-status ${statusClass}">${statusLabel}</span>
-          <div class="anem-speed ${gustClass}">${gust}<span>km/h</span></div>
+          <div class="anem-speed ${gustClass}">${gust}<span>km/h</span><span class="anem-speed-label">top speed</span></div>
           <div class="anem-meta">
             <div class="anem-meta-item">Direction<strong>${arrow}${dirTxt}</strong></div>
             <div class="anem-meta-item">Pression<strong>${press}</strong></div>
-            <div class="anem-meta-item">Moy.<strong>${avg}</strong></div>
+            <div class="anem-meta-item avg-speed">Moy.<strong>${avg}</strong></div>
           </div>
         </div>`;
 
@@ -853,14 +875,20 @@ setInterval(fetchAnemoData, 10000);
 
   function currentMinutes() { return STEPS[stepIdx]; }
 
+  const CHANNEL_CONFIG = {
+    gust: { index: '12', label: 'TOP' },
+    avg:  { index: '15', label: 'AVERAGE' }
+  };
+  let activeChannel = 'gust';
+
   const sensors = [
-    { masterId:'743441032', deviceId:'1105200446', channelIndex:'12', label:'BIP',
+    { masterId:'743441032', deviceId:'1105200446', label:'BIP',
       color:'rgba(0,112,204,1)',   fill:'rgba(0,112,204,0.10)' ,dash : []},
-    { masterId:'593494672', deviceId:'1181746382', channelIndex:'12', label:'CONTINENTAL',
+    { masterId:'593494672', deviceId:'1181746382', label:'CONTINENTAL',
       color:'rgba(229,62,62,1)',   fill:'rgba(229,62,62,0.10)',dash : [2,1]},
-    { masterId:'673186439', deviceId:'1258292575', channelIndex:'12', label:'PALAIS 5',
+    { masterId:'673186439', deviceId:'1258292575', label:'PALAIS 5',
       color:'rgba(124,58,237,1)',  fill:'rgba(124,58,237,0.10)',dash : [1,1] },
-    { masterId:'799015652', deviceId:'1125124441', channelIndex:'12', label:'PATINOIRE',
+    { masterId:'799015652', deviceId:'1125124441', label:'PATINOIRE',
       color:'rgba(5,150,105,1)',   fill:'rgba(5,150,105,0.10)' ,dash : [4,1]}
   ];
 
@@ -992,16 +1020,19 @@ setInterval(fetchAnemoData, 10000);
     updateChartTheme();
 
     sensors.forEach((sensor, idx) => {
-      const url = `https://rough-block-b4fe.e-jesuran.workers.dev/api/v2/reporters/${sensor.masterId}/sensors/${sensor.deviceId}/channels/${sensor.channelIndex}/measurements`
-        + `?start_time=${encodeURIComponent(new Date(startMs).toISOString())}`
-        + `&end_time=${encodeURIComponent(now.toISOString())}&page=0&page_size=10000`;
+      const channelIndex = CHANNEL_CONFIG[activeChannel].index;
+      const reqNowMs = Date.now();
+      const reqSMs   = reqNowMs - minutes * 60000;
+      // +5 min de marge sur end_time pour ne pas perdre les dernières mesures
+      const endWithMargin = new Date(reqNowMs + 5 * 60000);
+      const url = `https://rough-block-b4fe.e-jesuran.workers.dev/api/v2/reporters/${sensor.masterId}/sensors/${sensor.deviceId}/channels/${channelIndex}/measurements`
+        + `?start_time=${encodeURIComponent(new Date(reqSMs).toISOString())}`
+        + `&end_time=${encodeURIComponent(endWithMargin.toISOString())}&page=0&page_size=10000`;
       fetch(url, { headers:{'Accept':'application/json'} })
         .then(r => r.json())
         .then(data => {
-          const nowMs  = Date.now();
-          const sMs    = nowMs - minutes * 60000;
           window.myChart.data.datasets[idx].data = (data.items||[])
-            .filter(item => { const t=new Date(item.timestamp).getTime(); return t>=sMs&&t<=nowMs; })
+            .filter(item => { const t=new Date(item.timestamp).getTime(); return t>=reqSMs&&t<=reqNowMs; })
             .map(item => ({ x:new Date(item.timestamp), y:Math.round(3.6*item.value)/10 }));
           window.myChart.update('none');
         })
@@ -1017,6 +1048,21 @@ setInterval(fetchAnemoData, 10000);
   });
   document.getElementById('increaseHours').addEventListener('click', () => {
     if (stepIdx < STEPS.length - 1) { stepIdx++; updateChart(); }
+  });
+
+  const channelToggleBtn = document.getElementById('channelToggle');
+  const panel4Label = document.getElementById('panel4Label');
+  const PANEL_LABELS = { gust: '01 · TOP SPEED', avg: '01 · AVERAGE SPEED' };
+
+  channelToggleBtn.addEventListener('click', () => {
+    activeChannel = activeChannel === 'gust' ? 'avg' : 'gust';
+    const cfg = CHANNEL_CONFIG[activeChannel];
+    channelToggleBtn.textContent = cfg.label;
+    channelToggleBtn.className = activeChannel === 'gust' ? 'active-gust' : 'active-avg';
+    panel4Label.textContent = PANEL_LABELS[activeChannel];
+    window.myChart.data.datasets.forEach(ds => { ds.data = []; });
+    window.myChart.update('none');
+    updateChart();
   });
 })();
 </script>
