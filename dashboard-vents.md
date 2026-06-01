@@ -269,7 +269,10 @@ export default {
 | U3 | ✅ Fait | Afficher le statut opérationnel de chaque anémomètre | 03 |------|
 | U4 | ✅ Fait | Courbes moins arrondies (`tension: 0.1`) + `borderDash` par station | 04 |------|
 | I3 | ✅ Fait | Cache Worker (Cache API Cloudflare, TTL 10 s / 30 s) | — |------|
-| U5 | 🟡 Moyenne | Refonte layout Panel 04 (chips, ligne seuil 35 km/h, split stats) | 04 |------|
+| U5 | ✅ Fait | Refonte layout Panel 04 (ligne seuil 35 km/h, split stats) | 04 |------|
+| U5 | 🟡 Moyenne | Refonte layout Panel 04 (chips) | 04 |------|
 | U6 | ✅ Fait | Connecter l'API rafales réelles (channel 12) — estimation supprimée | 03/04 | anem-speed = rafale réelle, Moy. en meta, graphique sur channel 12 |
 | U7 | ✅ Fait | Bascule TOP / AVERAGE dans le graphique (channel 12 ↔ 15) | 04 | Bouton toggle dans les contrôles du panel |
+| U8 | ✅ Fait | Quand la tuile passe en mode warning ou alert, ajouter (au meme niveau que top speed) la valeur du Top Speed en m/s. | 03 |----|
+| U9 | ✅ Fait | Pour ne pas devoir recharger à chaque fois l'historique, et gagner en fluidité, utiliser un système de cache | 04 ||
 | I4 | 🟢 Basse | Ajouter CSP + SRI sur les dépendances CDN | — | |

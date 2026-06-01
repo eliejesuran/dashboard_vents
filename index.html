@@ -399,8 +399,44 @@
 
   /* ── PANEL 4 ─────────────────────────────────────── */
   #panel4 { grid-column:1; grid-row:1; }
-  #panel4 .chart-wrap { flex:1; min-height:0; padding:6px 12px 2px; position:relative; }
+  .panel4-body { flex:1; min-height:0; display:flex; flex-direction:row; }
+  #panel4 .chart-wrap { flex:4; min-width:0; padding:6px 12px 2px; position:relative; }
   #chartCanvas { width:100% !important; height:100% !important; }
+
+  .stats-panel {
+    flex:1;
+    min-width:0;
+    border-left:1px solid var(--border);
+    overflow-y:auto;
+    padding:8px 10px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    transition:border-color .3s;
+  }
+  .stats-panel::-webkit-scrollbar { width:3px; }
+  .stats-panel::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .stats-title {
+    font-family:'Share Tech Mono',monospace;
+    font-size:9px; letter-spacing:2px;
+    color:var(--text-dim); text-transform:uppercase;
+    padding-bottom:4px;
+    border-bottom:1px solid var(--border);
+    margin-bottom:2px;
+    transition:border-color .3s;
+  }
+  .stats-row { display:flex; flex-direction:column; gap:3px; }
+  .stats-name {
+    font-family:'Share Tech Mono',monospace;
+    font-size:9px; letter-spacing:1.5px; text-transform:uppercase;
+  }
+  .stats-vals { display:flex; flex-direction:column; gap:1px; }
+  .stat-item {
+    font-family:'Share Tech Mono',monospace;
+    font-size:10px; color:var(--text);
+    display:flex; justify-content:space-between; align-items:baseline;
+  }
+  .stat-lbl { font-size:8px; color:var(--text-dim); letter-spacing:1px; }
 
   #chartControls {
     flex:0 0 auto; display:flex; align-items:center; justify-content:center;
@@ -448,6 +484,14 @@
     font-weight: 700;
   }
 
+  .anem-speed-ms {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+  }
+
 
 
   /* ── MOBILE ──────────────────────────────────────── */
@@ -460,6 +504,8 @@
     #panel3 { grid-column:1; grid-row:1; height:auto; overflow:visible; }
     .video-layout { grid-template-columns: 1fr; }
     .mobile-video-controls { display: block; }
+    .stats-panel { display:none; }
+    #panel4 .chart-wrap { flex:1; }
   }
 </style>
 </head>
@@ -548,7 +594,10 @@
     <div class="panel" id="panel4">
       <div class="panel-label" id="panel4Label">01 · TOP SPEED</div>
       <button id="channelToggle" class="active-gust">TOP</button>
-      <div class="chart-wrap"><canvas id="chartCanvas"></canvas></div>
+      <div class="panel4-body">
+        <div class="chart-wrap"><canvas id="chartCanvas"></canvas></div>
+        <div class="stats-panel" id="statsPanel"></div>
+      </div>
       <div id="chartControls">
         <button id="decreaseHours">◂</button>
         <span id="hoursDisplay">2 heures</span>
@@ -802,18 +851,18 @@ async function fetchAnemoData() {
       const sensorEntry = (sensData.sensors || []).find(s => s.crlink === 'CONNECTOR_1');
       const state = sensorEntry?.state ?? 'UNKNOWN';
 
-      let avgSpeed = null, peakGust = null, psi = null, windDir = null;
+      let avgSpeed = null, peakGust = null, peakGustMs = null, psi = null, windDir = null;
       (data.items || []).forEach(item => {
         const isDevice = item.device_id?.id == meta.deviceId;
         const isMaster = item.device_id?.id == masterId;
         if (item.channel_index == 15 && isDevice) avgSpeed = Math.round(3.6 * item.value) / 10;
-        if (item.channel_index == 12 && isDevice) peakGust = Math.round(3.6 * item.value) / 10;
+        if (item.channel_index == 12 && isDevice) { peakGustMs = item.value; peakGust = Math.round(3.6 * item.value) / 10; }
         if (item.channel_index == 1  && isMaster)  psi     = Math.round(item.value / 10 * 10) / 10;
         if (item.channel_index == 14 && isDevice)  windDir = item.value;
       });
 
       const gustState  = gustLevel(peakGust);
-      return { masterId, name: meta.name, cssVar: meta.cssVar, avgSpeed, peakGust, psi, windDir, gustState, state };
+      return { masterId, name: meta.name, cssVar: meta.cssVar, avgSpeed, peakGust, peakGustMs, psi, windDir, gustState, state };
     }));
 
     let html = '';
@@ -834,11 +883,16 @@ async function fetchAnemoData() {
       const statusClass = isOffline ? 'offline' : 'online';
       const statusLabel = isOffline ? 'OFFLINE' : 'ONLINE';
 
+      const gustMsLine = (r.gustState !== 'normal' && r.peakGustMs != null)
+        ? `<div class="anem-speed-ms">${(Math.round(r.peakGustMs * 10) / 10)} m/s</div>`
+        : '';
+
       html += `
         <div class="${cardClass}" style="--card-color:${color}">
           <div class="anem-name">${r.name}</div>
           <span class="anem-status ${statusClass}">${statusLabel}</span>
           <div class="anem-speed ${gustClass}">${gust}<span>km/h</span><span class="anem-speed-label">top speed</span></div>
+          ${gustMsLine}
           <div class="anem-meta">
             <div class="anem-meta-item">Direction<strong>${arrow}${dirTxt}</strong></div>
             <div class="anem-meta-item">Pression<strong>${press}</strong></div>
@@ -858,19 +912,14 @@ setInterval(fetchAnemoData, 10000);
 
 /* ══ PANEL 4 — GRAPHIQUE ══════════════════════════ */
 (function() {
-  // Séquence des paliers en minutes : 15, 30, 60, 120(défaut), 180, 360, 540, 720, 1080, 1440, 2160, 2880, 4320
-  const STEPS = [15, 30, 60, 120, 180, 360, 540, 720, 1080, 1440, 2160, 2880, 3600,  4320, 5040];
-  const DEFAULT_IDX = 3; // 120 min = 2h
+  const STEPS = [15, 30, 60, 120, 180, 360, 540, 720, 1080, 1440, 2160, 2880, 3600, 4320, 5040];
+  const DEFAULT_IDX = 3;
   let stepIdx = DEFAULT_IDX;
 
   function stepLabel(minutes) {
-    if (minutes < 60)  return minutes + ' min';
-    if (minutes < 1440) {
-      const h = minutes / 60;
-      return h + ' heure' + (h > 1 ? 's' : '');
-    }
-    const d = minutes / 1440;
-    return d + ' jour' + (d > 1 ? 's' : '');
+    if (minutes < 60)   return minutes + ' min';
+    if (minutes < 1440) { const h = minutes / 60; return h + ' heure' + (h > 1 ? 's' : ''); }
+    const d = minutes / 1440; return d + ' jour' + (d > 1 ? 's' : '');
   }
 
   function currentMinutes() { return STEPS[stepIdx]; }
@@ -882,20 +931,60 @@ setInterval(fetchAnemoData, 10000);
   let activeChannel = 'gust';
 
   const sensors = [
-    { masterId:'743441032', deviceId:'1105200446', label:'BIP',
-      color:'rgba(0,112,204,1)',   fill:'rgba(0,112,204,0.10)' ,dash : []},
-    { masterId:'593494672', deviceId:'1181746382', label:'CONTINENTAL',
-      color:'rgba(229,62,62,1)',   fill:'rgba(229,62,62,0.10)',dash : [2,1]},
-    { masterId:'673186439', deviceId:'1258292575', label:'PALAIS 5',
-      color:'rgba(124,58,237,1)',  fill:'rgba(124,58,237,0.10)',dash : [1,1] },
-    { masterId:'799015652', deviceId:'1125124441', label:'PATINOIRE',
-      color:'rgba(5,150,105,1)',   fill:'rgba(5,150,105,0.10)' ,dash : [4,1]}
+    { masterId:'743441032', deviceId:'1105200446', label:'BIP',         color:'rgba(0,112,204,1)',  fill:'rgba(0,112,204,0.10)', dash:[]    },
+    { masterId:'593494672', deviceId:'1181746382', label:'CONTINENTAL', color:'rgba(229,62,62,1)',  fill:'rgba(229,62,62,0.10)', dash:[2,1] },
+    { masterId:'673186439', deviceId:'1258292575', label:'PALAIS 5',    color:'rgba(124,58,237,1)', fill:'rgba(124,58,237,0.10)',dash:[1,1] },
+    { masterId:'799015652', deviceId:'1125124441', label:'PATINOIRE',   color:'rgba(5,150,105,1)',  fill:'rgba(5,150,105,0.10)', dash:[4,1] }
   ];
+
+  /* ── Cache append-only (U9) ──────────────────────
+     historyCache[cacheKey] = { points: [{x, y, ts}], earliestMs: number }
+     cacheKey = `${sensorIdx}_${channelIndex}`
+  ─────────────────────────────────────────────── */
+  const historyCache = {};
+
+  function cacheKey(sensorIdx, channelIndex) { return `${sensorIdx}_${channelIndex}`; }
+
+  function getOrInitCache(key) {
+    if (!historyCache[key]) historyCache[key] = { points: [], earliestMs: Infinity };
+    return historyCache[key];
+  }
+
+  function mergePoints(existing, incoming) {
+    // Fusionne sans doublons (par timestamp ms), puis trie
+    const map = new Map(existing.map(p => [p.ts, p]));
+    incoming.forEach(p => map.set(p.ts, p));
+    return Array.from(map.values()).sort((a, b) => a.ts - b.ts);
+  }
+
+  /* ── Plugin ligne seuil 35 km/h (U5) ────────────── */
+  const thresholdPlugin = {
+    id: 'thresholdLine',
+    afterDraw(chart) {
+      const yScale = chart.scales.y;
+      const xScale = chart.scales.x;
+      if (!yScale || !xScale) return;
+      const y = yScale.getPixelForValue(35);
+      if (y < yScale.top || y > yScale.bottom) return;
+      const c = chart.ctx;
+      c.save();
+      c.beginPath();
+      c.strokeStyle = '#f59e0b';
+      c.lineWidth = 1;
+      c.globalAlpha = 0.7;
+      c.setLineDash([5, 4]);
+      c.moveTo(xScale.left, y);
+      c.lineTo(xScale.right, y);
+      c.stroke();
+      c.restore();
+    }
+  };
 
   const ctx = document.getElementById('chartCanvas').getContext('2d');
 
   window.myChart = new Chart(ctx, {
     type: 'line',
+    plugins: [thresholdPlugin],
     data: {
       datasets: sensors.map(s => ({
         label: s.label,
@@ -918,75 +1007,51 @@ setInterval(fetchAnemoData, 10000);
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration:300 },
-      interaction: {
-        mode: 'index',
-        intersect: false
-      },
+      interaction: { mode:'index', intersect:false },
       plugins: {
         legend: {
           position: 'top',
           labels: {
-            boxWidth: 10, padding: 12,
+            boxWidth:10, padding:12,
             color: getCSSVar('--text-dim'),
             font: { family:"'Share Tech Mono', monospace", size:11 }
           }
         },
-        title: { display: false },
+        title: { display:false },
         tooltip: {
-          enabled: true,
-          mode: 'index',
-          intersect: false,
+          enabled:true, mode:'index', intersect:false,
           backgroundColor: getCSSVar('--tooltip-bg'),
           titleColor:      getCSSVar('--text'),
           bodyColor:       getCSSVar('--text'),
           borderColor:     getCSSVar('--chart-grid'),
-          borderWidth: 1,
-          padding: 10,
-          caretSize: 5,
-          cornerRadius: 6,
+          borderWidth:1, padding:10, caretSize:5, cornerRadius:6,
           titleFont: { family:"'Share Tech Mono', monospace", size:11, weight:'bold' },
           bodyFont:  { family:"'Share Tech Mono', monospace", size:11 },
           callbacks: {
             title(items) {
               if (!items.length) return '';
-              const d = new Date(items[0].parsed.x);
-              return d.toLocaleTimeString('fr-BE', {
-                hour:'2-digit', minute:'2-digit', second:'2-digit'
-              });
+              return new Date(items[0].parsed.x).toLocaleTimeString('fr-BE',
+                { hour:'2-digit', minute:'2-digit', second:'2-digit' });
             },
             label(item) {
               const v = item.parsed.y;
-              const val = (v != null) ? v.toFixed(1) : '—';
-              return `  ${item.dataset.label} : ${val} km/h`;
+              return `  ${item.dataset.label} : ${v != null ? v.toFixed(1) : '—'} km/h`;
             },
             labelColor(item) {
-              return {
-                borderColor: item.dataset.borderColor,
-                backgroundColor: item.dataset.borderColor,
-                borderRadius: 3,
-                borderWidth: 0
-              };
+              return { borderColor:item.dataset.borderColor, backgroundColor:item.dataset.borderColor, borderRadius:3, borderWidth:0 };
             }
           }
         }
       },
       scales: {
         x: {
-          type: 'time',
+          type:'time',
           time: { unit:'hour', stepSize:1, displayFormats:{ hour:'HH:mm', minute:'HH:mm' } },
-          grid: { color: getCSSVar('--chart-grid') },
-          ticks: {
-            font: { family:"'Share Tech Mono', monospace", size:10 },
-            color: getCSSVar('--text-dim'),
-            maxRotation: 0
-          }
+          grid:  { color: getCSSVar('--chart-grid') },
+          ticks: { font:{ family:"'Share Tech Mono', monospace", size:10 }, color:getCSSVar('--text-dim'), maxRotation:0 }
         },
         y: {
-          title: {
-            display: true, text: 'km/h',
-            color: getCSSVar('--text-dim'),
-            font: { family:"'Share Tech Mono', monospace", size:11 }
-          },
+          title: { display:true, text:'km/h', color:getCSSVar('--text-dim'), font:{ family:"'Share Tech Mono', monospace", size:11 } },
           grid:  { color: getCSSVar('--chart-grid') },
           ticks: { font:{ family:"'Share Tech Mono', monospace", size:10 }, color:getCSSVar('--text-dim') }
         }
@@ -996,15 +1061,45 @@ setInterval(fetchAnemoData, 10000);
 
   updateChartTheme();
 
-  function updateChart() {
+  /* ── Tableau stats (U5) ──────────────────────────── */
+  function updateStatsPanel() {
+    const panel = document.getElementById('statsPanel');
+    if (!panel) return;
     const minutes = currentMinutes();
-    const now     = new Date();
-    const startMs = now - minutes * 60000;
+    let html = `<div class="stats-title">${stepLabel(minutes)}</div>`;
+    sensors.forEach((sensor, idx) => {
+      const pts = window.myChart.data.datasets[idx].data.map(p => p.y).filter(v => v != null);
+      if (!pts.length) {
+        html += `<div class="stats-row"><div class="stats-name" style="color:${sensor.color}">${sensor.label}</div><div class="stats-vals"><span class="stat-item" style="color:var(--text-dim)">—</span></div></div>`;
+        return;
+      }
+      const min = Math.min(...pts).toFixed(1);
+      const max = Math.max(...pts).toFixed(1);
+      const avg = (pts.reduce((a,b) => a+b, 0) / pts.length).toFixed(1);
+      html += `
+        <div class="stats-row">
+          <div class="stats-name" style="color:${sensor.color}">${sensor.label}</div>
+          <div class="stats-vals">
+            <span class="stat-item"><span class="stat-lbl">MIN&nbsp;</span>${min}&nbsp;km/h</span>
+            <span class="stat-item"><span class="stat-lbl">MOY&nbsp;</span>${avg}&nbsp;km/h</span>
+            <span class="stat-item"><span class="stat-lbl">MAX&nbsp;</span>${max}&nbsp;km/h</span>
+          </div>
+        </div>`;
+    });
+    panel.innerHTML = html;
+  }
+
+  /* ── updateChart avec cache append-only (U9) ─────── */
+  function updateChart(forceFullFetch = false) {
+    const minutes  = currentMinutes();
+    const nowMs    = Date.now();
+    const startMs  = nowMs - minutes * 60000;
+    const endMs    = nowMs + 5 * 60000;
+    const channelIndex = CHANNEL_CONFIG[activeChannel].index;
 
     window.myChart.options.scales.x.min = new Date(startMs);
-    window.myChart.options.scales.x.max = now;
+    window.myChart.options.scales.x.max = new Date(nowMs);
 
-    // Adapte le pas de l'axe X selon la durée choisie
     const xScale = window.myChart.options.scales.x;
     if (minutes <= 60)        { xScale.time.unit = 'minute'; xScale.time.stepSize = 10; }
     else if (minutes <= 360)  { xScale.time.unit = 'hour';   xScale.time.stepSize = 1;  }
@@ -1012,35 +1107,73 @@ setInterval(fetchAnemoData, 10000);
     else                      { xScale.time.unit = 'hour';   xScale.time.stepSize = 12; }
 
     document.getElementById('hoursDisplay').textContent = stepLabel(minutes);
-
-    // Désactive les boutons aux extrémités
     document.getElementById('decreaseHours').disabled = stepIdx === 0;
     document.getElementById('increaseHours').disabled = stepIdx === STEPS.length - 1;
 
     updateChartTheme();
 
+    let pending = sensors.length;
+    function onSensorDone() {
+      if (--pending === 0) { updateStatsPanel(); }
+    }
+
     sensors.forEach((sensor, idx) => {
-      const channelIndex = CHANNEL_CONFIG[activeChannel].index;
-      const reqNowMs = Date.now();
-      const reqSMs   = reqNowMs - minutes * 60000;
-      // +5 min de marge sur end_time pour ne pas perdre les dernières mesures
-      const endWithMargin = new Date(reqNowMs + 5 * 60000);
+      const key   = cacheKey(idx, channelIndex);
+      const cache = getOrInitCache(key);
+
+      const cacheCoversWindow = cache.earliestMs <= startMs && cache.points.length > 0;
+
+      let fetchStartMs, fetchFull;
+      if (forceFullFetch || !cacheCoversWindow) {
+        // Fetch complet de la fenêtre
+        fetchStartMs = startMs;
+        fetchFull    = true;
+      } else {
+        // Append : on fetch seulement depuis le dernier point connu
+        const lastTs = cache.points.length ? cache.points[cache.points.length - 1].ts : startMs;
+        fetchStartMs = lastTs + 1000;
+        fetchFull    = false;
+      }
+
+      // Si rien à fetcher (fenêtre réduite, cache couvre tout et déjà à jour)
+      if (!fetchFull && fetchStartMs >= nowMs) {
+        window.myChart.data.datasets[idx].data = cache.points
+          .filter(p => p.ts >= startMs && p.ts <= nowMs)
+          .map(p => ({ x: new Date(p.ts), y: p.y }));
+        onSensorDone();
+        return;
+      }
+
       const url = `https://rough-block-b4fe.e-jesuran.workers.dev/api/v2/reporters/${sensor.masterId}/sensors/${sensor.deviceId}/channels/${channelIndex}/measurements`
-        + `?start_time=${encodeURIComponent(new Date(reqSMs).toISOString())}`
-        + `&end_time=${encodeURIComponent(endWithMargin.toISOString())}&page=0&page_size=10000`;
+        + `?start_time=${encodeURIComponent(new Date(fetchStartMs).toISOString())}`
+        + `&end_time=${encodeURIComponent(new Date(endMs).toISOString())}&page=0&page_size=10000`;
+
       fetch(url, { headers:{'Accept':'application/json'} })
         .then(r => r.json())
         .then(data => {
-          window.myChart.data.datasets[idx].data = (data.items||[])
-            .filter(item => { const t=new Date(item.timestamp).getTime(); return t>=reqSMs&&t<=reqNowMs; })
-            .map(item => ({ x:new Date(item.timestamp), y:Math.round(3.6*item.value)/10 }));
+          const incoming = (data.items || [])
+            .map(item => ({ ts: new Date(item.timestamp).getTime(), y: Math.round(3.6 * item.value) / 10 }))
+            .filter(p => p.ts <= nowMs);
+
+          if (fetchFull) {
+            cache.points     = incoming;
+            cache.earliestMs = fetchStartMs;
+          } else {
+            cache.points = mergePoints(cache.points, incoming);
+          }
+
+          window.myChart.data.datasets[idx].data = cache.points
+            .filter(p => p.ts >= startMs && p.ts <= nowMs)
+            .map(p => ({ x: new Date(p.ts), y: p.y }));
+
           window.myChart.update('none');
+          onSensorDone();
         })
-        .catch(e => console.error(`Erreur ${sensor.label}:`, e));
+        .catch(e => { console.error(`Erreur ${sensor.label}:`, e); onSensorDone(); });
     });
   }
 
-  updateChart();
+  updateChart(true);
   setInterval(updateChart, 30000);
 
   document.getElementById('decreaseHours').addEventListener('click', () => {
@@ -1051,18 +1184,20 @@ setInterval(fetchAnemoData, 10000);
   });
 
   const channelToggleBtn = document.getElementById('channelToggle');
-  const panel4Label = document.getElementById('panel4Label');
-  const PANEL_LABELS = { gust: '01 · TOP SPEED', avg: '01 · AVERAGE SPEED' };
+  const panel4Label      = document.getElementById('panel4Label');
+  const PANEL_LABELS     = { gust:'01 · TOP SPEED', avg:'01 · AVERAGE SPEED' };
 
   channelToggleBtn.addEventListener('click', () => {
     activeChannel = activeChannel === 'gust' ? 'avg' : 'gust';
     const cfg = CHANNEL_CONFIG[activeChannel];
     channelToggleBtn.textContent = cfg.label;
-    channelToggleBtn.className = activeChannel === 'gust' ? 'active-gust' : 'active-avg';
-    panel4Label.textContent = PANEL_LABELS[activeChannel];
+    channelToggleBtn.className   = activeChannel === 'gust' ? 'active-gust' : 'active-avg';
+    panel4Label.textContent      = PANEL_LABELS[activeChannel];
+    // Cache invalidé pour le nouveau canal → fetch complet
+    sensors.forEach((_, idx) => { historyCache[cacheKey(idx, cfg.index)] = { points:[], earliestMs:Infinity }; });
     window.myChart.data.datasets.forEach(ds => { ds.data = []; });
     window.myChart.update('none');
-    updateChart();
+    updateChart(true);
   });
 })();
 </script>
