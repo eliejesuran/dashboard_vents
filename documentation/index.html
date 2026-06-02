@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="/documentation/">
+  <title>Guide d'utilisation — Dashboard Vents Bruxelles</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent:  #0070cc;
+      --accent2: #e53e3e;
+      --accent3: #7c3aed;
+      --accent4: #059669;
+      --amber:   #f59e0b;
+      --bg:      #f0f4f8;
+      --surface: #ffffff;
+      --border:  #dde3ec;
+      --text:    #1a202c;
+      --dim:     #64748b;
+      --radius:  10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+
+    /* ── SIDEBAR ──────────────────────────────────── */
+    #sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: 230px;
+      height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 24px 0 40px;
+      z-index: 10;
+    }
+
+    .nav-brand {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--accent);
+      text-transform: uppercase;
+      padding: 0 20px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-back {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 20px;
+      font-size: 12px;
+      color: var(--dim);
+      text-decoration: none;
+      border-bottom: 1px solid var(--border);
+      transition: color .15s;
+    }
+    .nav-back:hover { color: var(--accent); }
+
+    #sidebar nav { padding-top: 10px; }
+
+    #sidebar a.nav-link {
+      display: block;
+      padding: 7px 20px;
+      font-size: 13.5px;
+      color: var(--dim);
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: color .15s, background .15s, border-color .15s;
+    }
+    #sidebar a.nav-link:hover,
+    #sidebar a.nav-link.active {
+      color: var(--accent);
+      background: #f0f7ff;
+      border-left-color: var(--accent);
+    }
+
+    #sidebar a.nav-section {
+      display: block;
+      padding: 14px 20px 4px;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text);
+      pointer-events: none;
+    }
+
+    /* ── MAIN ─────────────────────────────────────── */
+    main {
+      margin-left: 230px;
+      padding: 56px 60px 100px;
+      max-width: 900px;
+    }
+
+    /* ── HERO ─────────────────────────────────────── */
+    .hero {
+      margin-bottom: 52px;
+    }
+
+    .hero-tag {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+
+    .hero p {
+      font-size: 16px;
+      color: var(--dim);
+      max-width: 580px;
+    }
+
+    /* ── TITRES ───────────────────────────────────── */
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 60px 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h2 .h2-icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 28px 0 10px;
+    }
+
+    p { margin-bottom: 14px; font-size: 15px; }
+
+    /* ── SCREENSHOT ───────────────────────────────── */
+    .screenshot {
+      margin: 20px 0 28px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0,0,0,.08);
+    }
+
+    .screenshot img {
+      width: 100%;
+      display: block;
+    }
+
+    .screenshot figcaption {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 8px 14px;
+      font-size: 12px;
+      color: var(--dim);
+      font-style: italic;
+    }
+
+    /* ── PLACEHOLDER screenshot ───────────────────── */
+    .screenshot-ph {
+      background: #e8edf5;
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #94a3b8;
+      font-size: 12px;
+      font-family: 'Share Tech Mono', monospace;
+      padding: 24px;
+      text-align: center;
+    }
+
+    /* ── CARTES INFO RAPIDE ───────────────────────── */
+    .quick-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin: 24px 0 36px;
+    }
+
+    .qcard {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      text-align: center;
+    }
+
+    .qcard .qc-icon { font-size: 28px; margin-bottom: 8px; }
+    .qcard .qc-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .qcard .qc-desc { font-size: 12px; color: var(--dim); line-height: 1.4; }
+
+    /* ── SEUILS COULEUR ───────────────────────────── */
+    .seuils {
+      display: flex;
+      gap: 14px;
+      margin: 18px 0 28px;
+      flex-wrap: wrap;
+    }
+
+    .seuil-box {
+      flex: 1;
+      min-width: 130px;
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      text-align: center;
+    }
+
+    .seuil-box .s-val {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 24px;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .seuil-box .s-label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 4px; }
+    .seuil-box .s-desc { font-size: 12px; opacity: .8; }
+
+    .s-normal  { background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
+    .s-warning { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .s-alert   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+    /* ── ÉTAPES ───────────────────────────────────── */
+    .steps { margin: 16px 0 28px; }
+
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .step-num {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-body { padding-top: 4px; }
+    .step-body strong { display: block; font-size: 15px; margin-bottom: 3px; }
+    .step-body p { font-size: 14px; color: var(--dim); margin: 0; }
+
+    /* ── CALLOUT ──────────────────────────────────── */
+    .callout {
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin: 18px 0;
+      font-size: 14px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      line-height: 1.6;
+    }
+
+    .callout.tip   { background: #f0fdf4; border-left: 4px solid var(--accent4); color: #14532d; }
+    .callout.warn  { background: #fefce8; border-left: 4px solid var(--amber);   color: #713f12; }
+    .callout.info  { background: #eff6ff; border-left: 4px solid var(--accent);  color: #1e3a5f; }
+
+    .callout .ci { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── TABLE ────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin: 14px 0 24px;
+    }
+
+    th {
+      background: var(--bg);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--dim);
+      padding: 9px 14px;
+      border-bottom: 2px solid var(--border);
+      text-align: left;
+    }
+
+    td { padding: 9px 14px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8fafc; }
+
+    /* ── PANEL ANNOTATED ──────────────────────────── */
+    .annotated {
+      position: relative;
+      margin: 20px 0 28px;
+    }
+
+    .annotated img { width: 100%; border-radius: var(--radius); border: 1px solid var(--border); display: block; }
+
+    /* ── DÉPANNAGE ────────────────────────────────── */
+    .troubleshoot-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .ts-q {
+      padding: 14px 18px;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface);
+    }
+
+    .ts-q::after { content: '▾'; color: var(--dim); font-size: 14px; }
+    .ts-a { padding: 0 18px 14px; font-size: 14px; color: var(--dim); line-height: 1.6; display: none; }
+    .troubleshoot-item.open .ts-a { display: block; }
+    .troubleshoot-item.open .ts-q::after { content: '▴'; }
+
+    /* ── FOOTER ───────────────────────────────────── */
+    footer {
+      margin-top: 72px;
+      padding-top: 28px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 12px;
+      color: var(--dim);
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    /* ── RESPONSIVE ───────────────────────────────── */
+    @media (max-width: 860px) {
+      #sidebar { display: none; }
+      main { margin-left: 0; padding: 28px 18px 60px; }
+      .quick-cards { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ──────────────────────────────────── -->
+<aside id="sidebar">
+  <div class="nav-brand">Guide utilisateur</div>
+  <a class="nav-back" href="../vents.html">← Retour au dashboard</a>
+  <nav>
+    <a class="nav-section">Premiers pas</a>
+    <a class="nav-link" href="#apercu">Aperçu général</a>
+    <a class="nav-link" href="#interface">L'interface</a>
+
+    <a class="nav-section">Les 4 zones</a>
+    <a class="nav-link" href="#anemometres">Anémomètres</a>
+    <a class="nav-link" href="#historique">Historique</a>
+    <a class="nav-link" href="#meteo">Météo IRM</a>
+    <a class="nav-link" href="#webcams">Webcams</a>
+
+    <a class="nav-section">Aller plus loin</a>
+    <a class="nav-link" href="#thème">Thème clair / sombre</a>
+    <a class="nav-link" href="#depannage">Dépannage</a>
+  </nav>
+</aside>
+
+<!-- ── CONTENU ──────────────────────────────────── -->
+<main>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag">⟁ Dashboard Vents · Bruxelles</div>
+    <h1>Guide d'utilisation</h1>
+    <p>Tout ce qu'il faut savoir pour lire et utiliser le tableau de bord des conditions de vent à Bruxelles — sans jargon technique.</p>
+  </div>
+
+  <!-- ── APERÇU ─────────────────────────────────── -->
+  <section id="apercu">
+    <h2><span class="h2-icon" style="background:#eff6ff">🧭</span> À quoi ça sert ?</h2>
+
+    <p>Le Dashboard Vents permet de suivre en temps réel le vent à Bruxelles grâce à <strong>4 anémomètres</strong> répartis dans la ville. Il s'actualise automatiquement toutes les 6 secondes — aucune manipulation nécessaire.</p>
+
+    <div class="quick-cards">
+      <div class="qcard">
+        <div class="qc-icon">💨</div>
+        <div class="qc-title">Vent en direct</div>
+        <div class="qc-desc">Rafale, vitesse moyenne et direction pour chaque station</div>
+      </div>
+      <div class="qcard">
+        <div class="qc-icon">📈</div>
+        <div class="qc-title">Historique</div>
+        <div class="qc-desc">Courbes des dernières minutes jusqu'aux 3,5 derniers jours</div>
+      </div>
+      <div class="qcard">
+        <div class="qc-icon">📷</div>
+        <div class="qc-title">Webcams live</div>
+        <div class="qc-desc">Grand Place et De Brouckère en temps réel</div>
+      </div>
+    </div>
+
+    <figure class="screenshot">
+      <img src="screenshots/vue-globale-bright.jpg" alt="Vue globale du dashboard, thème clair"
+           onerror="this.parentElement.querySelector('.screenshot-ph').style.display='flex'; this.style.display='none';">
+      <div class="screenshot-ph" style="display:none">
+        📸 Capture à ajouter : vue complète du dashboard (thème clair, plein écran)
+      </div>
+      <figcaption>Le dashboard en thème clair — toutes les zones visibles en un coup d'œil</figcaption>
+    </figure>
+  </section>
+
+  <!-- ── INTERFACE ──────────────────────────────── -->
+  <section id="interface">
+    <h2><span class="h2-icon" style="background:#f5f3ff">🗂️</span> L'interface en un coup d'œil</h2>
+
+    <p>L'écran est découpé en <strong>4 zones</strong> disposées en grille. La barre du haut affiche l'heure en direct et permet de basculer entre le thème clair et sombre.</p>
+
+    <figure class="screenshot">
+      <img src="screenshots/vue-globale-annotee.jpg" alt="Interface annotée"
+           onerror="this.parentElement.querySelector('.screenshot-ph').style.display='flex'; this.style.display='none';">
+      <div class="screenshot-ph" style="display:none">
+        📸 Capture à ajouter : vue globale avec annotations des 4 zones
+      </div>
+      <figcaption>Les 4 zones : anémomètres (droite), historique (haut gauche), météo (milieu gauche), webcams (bas gauche)</figcaption>
+    </figure>
+
+    <table>
+      <thead><tr><th>Zone</th><th>Ce qu'elle montre</th><th>Actualisation</th></tr></thead>
+      <tbody>
+        <tr><td>🌬️ <strong>Anémomètres</strong></td><td>Données vent en temps réel · 4 stations</td><td>Toutes les 6 secondes</td></tr>
+        <tr><td>📈 <strong>Historique</strong></td><td>Courbe des vitesses passées</td><td>Toutes les 30 secondes</td></tr>
+        <tr><td>☁️ <strong>Météo IRM</strong></td><td>Liens vers les prévisions officielles</td><td>—</td></tr>
+        <tr><td>📷 <strong>Webcams</strong></td><td>Flux vidéo live Grand Place & De Brouckère</td><td>Continu</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── ANÉMOMÈTRES ────────────────────────────── -->
+  <section id="anemometres">
+    <h2><span class="h2-icon" style="background:#fff7ed">🌬️</span> Les anémomètres</h2>
+
+    <p>C'est la zone principale. Elle affiche en temps réel les données de <strong>4 stations</strong> équipées d'anémomètres à Bruxelles :</p>
+
+    <table>
+      <thead><tr><th>Station</th><th>Couleur</th><th>Localisation</th></tr></thead>
+      <tbody>
+        <tr><td><strong>BIP</strong></td><td style="color:var(--accent)">● Bleu</td><td>Centre de Bruxelles</td></tr>
+        <tr><td><strong>CONTINENTAL</strong></td><td style="color:var(--accent2)">● Rouge</td><td>Bruxelles</td></tr>
+        <tr><td><strong>PALAIS 5</strong></td><td style="color:var(--accent3)">● Violet</td><td>Bruxelles</td></tr>
+        <tr><td><strong>PATINOIRE</strong></td><td style="color:var(--accent4)">● Vert</td><td>Bruxelles</td></tr>
+      </tbody>
+    </table>
+
+    <figure class="screenshot">
+      <img src="screenshots/panel-anemometres.jpg" alt="Panel anémomètres"
+           onerror="this.parentElement.querySelector('.screenshot-ph').style.display='flex'; this.style.display='none';">
+      <div class="screenshot-ph" style="display:none">
+        📸 Capture à ajouter : les 4 cartes anémomètres (conditions normales)
+      </div>
+      <figcaption>Les 4 cartes de stations — chacune affiche la rafale, la direction et la pression</figcaption>
+    </figure>
+
+    <h3>Que signifient les chiffres ?</h3>
+    <table>
+      <thead><tr><th>Donnée</th><th>Explication</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Vitesse max. (3 sec)</strong></td>
+          <td>La <em>rafale</em> : la vitesse la plus élevée enregistrée sur les 3 dernières secondes. C'est le chiffre le plus important pour évaluer le danger.</td>
+        </tr>
+        <tr>
+          <td><strong>Moy.</strong></td>
+          <td>La vitesse moyenne du vent sur la même période. Généralement inférieure à la rafale.</td>
+        </tr>
+        <tr>
+          <td><strong>Direction</strong></td>
+          <td>D'où vient le vent, en degrés et en point cardinal (N, NE, E, SE, S, SW, W, NW). La flèche indique la provenance.</td>
+        </tr>
+        <tr>
+          <td><strong>Pression</strong></td>
+          <td>La pression atmosphérique en hPa. Une baisse rapide signale souvent l'arrivée d'une perturbation.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Les couleurs d'alerte</h3>
+    <p>La valeur de rafale change de couleur selon le niveau de vent :</p>
+
+    <div class="seuils">
+      <div class="seuil-box s-normal">
+        <span class="s-val">&lt; 35</span>
+        <span class="s-label">Normal</span>
+        <span class="s-desc">Vent faible à modéré, pas d'alerte</span>
+      </div>
+      <div class="seuil-box s-warning">
+        <span class="s-val">≥ 35</span>
+        <span class="s-label">Attention ⚠️</span>
+        <span class="s-desc">Vent fort — prudence avec les structures légères</span>
+      </div>
+      <div class="seuil-box s-alert">
+        <span class="s-val">&gt; 50</span>
+        <span class="s-label">Alerte 🔴</span>
+        <span class="s-desc">Vent violent — risque pour les activités en extérieur</span>
+      </div>
+    </div>
+
+    <figure class="screenshot">
+      <img src="screenshots/panel-alerte.jpg" alt="Carte en état d'alerte"
+           onerror="this.parentElement.querySelector('.screenshot-ph').style.display='flex'; this.style.display='none';">
+      <div class="screenshot-ph" style="display:none">
+        📸 Capture à ajouter : une carte en état warning (fond ambre) ou alerte (fond rouge)
+      </div>
+      <figcaption>En cas de vent fort, la carte change de couleur et affiche aussi la valeur en m/s</figcaption>
+    </figure>
+
+    <h3>Le badge ONLINE / OFFLINE</h3>
+    <p>Chaque carte affiche un petit badge dans le coin supérieur droit :</p>
+    <ul style="margin-bottom:14px; font-size:15px;">
+      <li style="margin-bottom:6px"><span style="color:var(--accent4);font-weight:700">● ONLINE</span> — La station fonctionne et envoie des données.</li>
+      <li><span style="color:var(--accent2);font-weight:700">● OFFLINE</span> — La station est hors ligne (panne, maintenance). Les données affichées peuvent être obsolètes.</li>
+    </ul>
+
+    <div class="callout warn">
+      <span class="ci">⚠️</span>
+      <div>Quand une station est <strong>OFFLINE</strong>, son fond devient légèrement rougeâtre. Ne pas se fier aux valeurs affichées dans ce cas.</div>
+    </div>
+  </section>
+
+  <!-- ── HISTORIQUE ──────────────────────────────── -->
+  <section id="historique">
+    <h2><span class="h2-icon" style="background:#f0fdf4">📈</span> L'historique des vitesses</h2>
+
+    <p>Le graphique montre l'évolution du vent dans le temps pour les 4 stations. Chaque courbe correspond à une station, avec le même code couleur que les cartes.</p>
+
+    <figure class="screenshot">
+      <img src="screenshots/panel-historique.jpg" alt="Graphique historique"
+           onerror="this.parentElement.querySelector('.screenshot-ph').style.display='flex'; this.style.display='none';">
+      <div class="screenshot-ph" style="display:none">
+        📸 Capture à ajouter : le panel historique complet avec graphique et panneau stats
+      </div>
+      <figcaption>Le graphique et son panneau de statistiques (MIN / MOY / MAX par station)</figcaption>
+    </figure>
+
+    <h3>Changer la fenêtre de temps</h3>
+    <p>Les boutons <strong>◂</strong> et <strong>▸</strong> en bas du graphique permettent de réduire ou d'étendre la période affichée, de 15 minutes jusqu'à 3,5 jours :</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">◂</div>
+        <div class="step-body">
+          <strong>Réduire la période</strong>
+          <p>Affiche une fenêtre plus courte — les détails sont plus visibles (ex. : 15 min, 30 min, 1 heure).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">▸</div>
+        <div class="step-body">
+          <strong>Élargir la période</strong>
+          <p>Affiche une fenêtre plus longue — utile pour voir les tendances de la journée ou des jours précédents.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>VIT. MAX. vs VIT. MOY.</h3>
+    <p>Le bouton en haut à droite du graphique bascule entre deux modes :</p>
+    <ul style="font-size:15px; margin-bottom:14px;">
+      <li style="margin-bottom:6px"><strong>VIT. MAX.</strong> — Affiche les rafales (pointes de vent). Les courbes sont plus irrégulières.</li>
+      <li><strong>VIT. MOY.</strong> — Affiche la vitesse moyenne. Les courbes sont plus lisses.</li>
+    </ul>
+
+    <h3>La ligne en pointillés ambrés</h3>
+    <p>Une ligne horizontale dorée apparaît à <strong>35 km/h</strong> — le seuil d'attention. Dès qu'une courbe la dépasse, le vent entre en zone d'alerte.</p>
+
+    <h3>Le tableau de statistiques</h3>
+    <p>À droite du graphique, un petit tableau récapitule pour chaque station, sur la période affichée :</p>
+    <ul style="font-size:15px; margin-bottom:14px;">
+      <li style="margin-bottom:4px"><strong>MIN</strong> — vitesse la plus basse enregistrée</li>
+      <li style="margin-bottom:4px"><strong>MOY</strong> — moyenne sur toute la période</li>
+      <li><strong>MAX</strong> — rafale la plus élevée</li>
+    </ul>
+
+    <div class="callout tip">
+      <span class="ci">💡</span>
+      <div>Le graphique <strong>ne recharge pas tout à chaque fois</strong> : seules les nouvelles données sont ajoutées. La navigation entre différentes durées est donc instantanée.</div>
+    </div>
+  </section>
+
+  <!-- ── MÉTÉO IRM ───────────────────────────────── -->
+  <section id="meteo">
+    <h2><span class="h2-icon" style="background:#fefce8">☁️</span> Météo IRM</h2>
+
+    <p>Deux raccourcis vers les services météo officiels de l'Institut Royal Météorologique de Belgique :</p>
+
+    <figure class="screenshot">
+      <img src="screenshots/panel-meteo.jpg" alt="Panel liens météo"
+           onerror="this.parentElement.querySelector('.screenshot-ph').style.display='flex'; this.style.display='none';">
+      <div class="screenshot-ph" style="display:none">
+        📸 Capture à ajouter : les deux boutons Bulletin météo et INCA
+      </div>
+      <figcaption>Deux boutons de raccourci vers les services IRM</figcaption>
+    </figure>
+
+    <table>
+      <thead><tr><th>Bouton</th><th>Ce qu'il ouvre</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>📋 <strong>Bulletin météo</strong></td>
+          <td>Le bulletin de prévisions météo textuelles de l'IRM pour la Belgique (mymeteo.be). Utile pour avoir les prévisions du jour ou du lendemain.</td>
+        </tr>
+        <tr>
+          <td>🗺️ <strong>INCA</strong></td>
+          <td>La carte météo interactive haute résolution — visualise en direct le vent, la pluie et d'autres paramètres sur toute la Belgique.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Ces liens s'ouvrent dans un nouvel onglet. Le dashboard reste ouvert en arrière-plan.</p>
+  </section>
+
+  <!-- ── WEBCAMS ────────────────────────────────── -->
+  <section id="webcams">
+    <h2><span class="h2-icon" style="background:#f0fdf4">📷</span> Webcams live</h2>
+
+    <p>Deux caméras de la Ville de Bruxelles diffusées en continu :</p>
+
+    <figure class="screenshot">
+      <img src="screenshots/panel-webcams.jpg" alt="Panel webcams"
+           onerror="this.parentElement.querySelector('.screenshot-ph').style.display='flex'; this.style.display='none';">
+      <div class="screenshot-ph" style="display:none">
+        📸 Capture à ajouter : les deux webcams côte à côte (Grand Place active à gauche)
+      </div>
+      <figcaption>Grand Place (gauche) et De Brouckère (droite) en diffusion live</figcaption>
+    </figure>
+
+    <table>
+      <thead><tr><th>Caméra</th><th>Vue</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Grand Place</strong></td><td>La Grand-Place de Bruxelles — vue sur la place depuis les hauteurs</td></tr>
+        <tr><td><strong>De Brouckère</strong></td><td>La place De Brouckère — vue sur le centre-ville</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Sur smartphone</h3>
+    <p>Sur mobile, une seule caméra est affichée à la fois. Le bouton <strong>↔️</strong> permet de basculer entre Grand Place et De Brouckère.</p>
+
+    <figure class="screenshot">
+      <img src="screenshots/mobile-webcam.jpg" alt="Vue mobile webcam"
+           onerror="this.parentElement.querySelector('.screenshot-ph').style.display='flex'; this.style.display='none';">
+      <div class="screenshot-ph" style="display:none">
+        📸 Capture à ajouter : vue mobile avec une seule webcam et le bouton de bascule
+      </div>
+      <figcaption>Sur mobile : une caméra visible à la fois, bouton ↔️ pour changer</figcaption>
+    </figure>
+
+    <div class="callout info">
+      <span class="ci">ℹ️</span>
+      <div>Si le flux vidéo affiche <em>« Flux vidéo indisponible »</em>, un lien direct vers le flux apparaît. Cela peut arriver lors de coupures temporaires des caméras de la Ville.</div>
+    </div>
+  </section>
+
+  <!-- ── THÈME ──────────────────────────────────── -->
+  <section id="thème">
+    <h2><span class="h2-icon" style="background:#faf5ff">🌗</span> Thème clair / sombre</h2>
+
+    <p>Le bouton en haut à droite de l'interface bascule entre le thème <strong>clair</strong> (par défaut) et <strong>sombre</strong>. Votre préférence est sauvegardée automatiquement — elle sera appliquée à la prochaine ouverture.</p>
+
+    <figure class="screenshot">
+      <img src="screenshots/vue-globale-dark.jpg" alt="Dashboard en thème sombre"
+           onerror="this.parentElement.querySelector('.screenshot-ph').style.display='flex'; this.style.display='none';">
+      <div class="screenshot-ph" style="display:none">
+        📸 Capture à ajouter : le dashboard en thème dark
+      </div>
+      <figcaption>Le thème sombre — idéal pour une utilisation en salle obscure ou en soirée</figcaption>
+    </figure>
+  </section>
+
+  <!-- ── DÉPANNAGE ──────────────────────────────── -->
+  <section id="depannage">
+    <h2><span class="h2-icon" style="background:#fff1f2">🔧</span> Dépannage</h2>
+
+    <p>Quelques situations fréquentes et leur explication :</p>
+
+    <div class="troubleshoot-item">
+      <div class="ts-q">Les valeurs de vent ne se mettent plus à jour</div>
+      <div class="ts-a">
+        Vérifiez votre connexion internet. Si la connexion est active, rechargez la page (F5 ou Cmd+R). Les données s'actualisent toutes les 6 secondes — un léger délai est normal.
+      </div>
+    </div>
+
+    <div class="troubleshoot-item">
+      <div class="ts-q">Une station affiche OFFLINE</div>
+      <div class="ts-a">
+        La station est temporairement hors ligne (panne matérielle, maintenance, problème réseau). Les données affichées peuvent dater d'avant la panne. Attendez quelques minutes et rechargez la page.
+      </div>
+    </div>
+
+    <div class="troubleshoot-item">
+      <div class="ts-q">Le graphique historique est vide</div>
+      <div class="ts-a">
+        Au premier chargement, le graphique peut prendre quelques secondes pour récupérer les données. Si le problème persiste après 10–15 secondes, rechargez la page.
+      </div>
+    </div>
+
+    <div class="troubleshoot-item">
+      <div class="ts-q">La webcam affiche « Flux vidéo indisponible »</div>
+      <div class="ts-a">
+        Les caméras appartiennent à la Ville de Bruxelles — une coupure temporaire est hors de notre contrôle. Un lien direct vers le flux est proposé en secours. Réessayez dans quelques minutes ou rechargez la page.
+      </div>
+    </div>
+
+    <div class="troubleshoot-item">
+      <div class="ts-q">L'application est lente ou gelée sur smartphone</div>
+      <div class="ts-a">
+        Fermez et rouvrez l'onglet. Si le problème revient, vérifiez que votre navigateur est à jour. L'application fonctionne sur tous les navigateurs modernes (Chrome, Safari, Firefox, Edge).
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Dashboard Vents · Bruxelles · Guide utilisateur · © 2026 Elie JESURAN
+  </footer>
+
+</main>
+
+<script>
+  // Accordéon dépannage
+  document.querySelectorAll('.ts-q').forEach(q => {
+    q.addEventListener('click', () => {
+      q.parentElement.classList.toggle('open');
+    });
+  });
+
+  // Scroll spy
+  const sections = document.querySelectorAll('section[id]');
+  const links = document.querySelectorAll('#sidebar a.nav-link[href^="#"]');
+  window.addEventListener('scroll', () => {
+    let cur = '';
+    sections.forEach(s => { if (window.scrollY >= s.offsetTop - 90) cur = s.id; });
+    links.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + cur);
+    });
+  }, { passive: true });
+</script>
+
+</body>
+</html>
