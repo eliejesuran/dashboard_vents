@@ -22,9 +22,11 @@
     --surface2:  #f8fafc;
     --border:    #dde3ec;
     --accent:    #0070cc;
-    --accent2:   #e53e3e;
+    --accent2:   #d97706;
     --accent3:   #7c3aed;
-    --accent4:   #059669;
+    --accent4:   #0891b2;
+    --danger:    #e53e3e;
+    --ok:        #059669;
     --text:      #1a202c;
     --text-dim:  #64748b;
     --shadow:    0 1px 4px rgba(0,0,0,.10);
@@ -41,9 +43,11 @@
     --surface2:  #1a2236;
     --border:    #1e2d45;
     --accent:    #00c6ff;
-    --accent2:   #ff6b6b;
+    --accent2:   #fbbf24;
     --accent3:   #a78bfa;
-    --accent4:   #34d399;
+    --accent4:   #22d3ee;
+    --danger:    #ff6b6b;
+    --ok:        #34d399;
     --text:      #e2e8f0;
     --text-dim:  #64748b;
     --shadow:    0 1px 8px rgba(0,0,0,.4);
@@ -398,8 +402,8 @@
   }
 
   .anem-card.offline {
-  background: color-mix(in srgb, var(--accent2) 8%, var(--surface2));
-  border-color: color-mix(in srgb, var(--accent2) 30%, var(--border));
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface2));
+  border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
   }
   
   .anem-status {
@@ -411,8 +415,8 @@
     padding: 2px 7px;
     border-radius: 10px;
   }
-  .anem-status.online  { background: color-mix(in srgb, var(--accent4) 15%, transparent); color: var(--accent4); }
-  .anem-status.offline { background: color-mix(in srgb, var(--accent2) 15%, transparent); color: var(--accent2); }
+  .anem-status.online  { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+  .anem-status.offline { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
 
   /* ── PANEL 4 ─────────────────────────────────────── */
   #panel4 { grid-column:1; grid-row:1; }
@@ -450,10 +454,10 @@
   .stats-vals { display:flex; flex-direction:column; gap:1px; }
   .stat-item {
     font-family:'Share Tech Mono',monospace;
-    font-size:10px; color:var(--text);
+    font-size:12px; color:var(--text);
     display:flex; justify-content:space-between; align-items:baseline;
   }
-  .stat-lbl { font-size:8px; color:var(--text-dim); letter-spacing:1px; }
+  .stat-lbl { font-size:10px; color:var(--text-dim); letter-spacing:1px; }
 
   #chartControls {
     flex:0 0 auto; display:flex; align-items:center; justify-content:center;
@@ -497,7 +501,7 @@
   }
 
   .gust-alert {
-    color: var(--accent2) !important;
+    color: var(--danger) !important;
     font-weight: 700;
   }
 
@@ -510,6 +514,41 @@
   }
 
 
+
+  /* ── MAX 30' (mobile paysage uniquement) ──────────── */
+  .anem-max30 { display: none; }
+
+  @media (max-width: 900px) and (orientation: landscape) {
+    .anem-max30 {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      position: absolute;
+      top: 32px;
+      right: 12px;
+      text-align: right;
+    }
+    .anem-max30-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 1.2px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+    .anem-max30-val {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .anem-max30-unit {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-weight: 400;
+      margin-left: 2px;
+    }
+  }
 
   /* ── MOBILE ──────────────────────────────────────── */
   @media (max-width:900px) {
@@ -842,6 +881,19 @@ function gustLevel(gust) {
 
 /* ══ PANEL 3 — ANÉMOMÈTRES ════════════════════════ */
 const masterIds = ['593494672','743441032','673186439','799015652'];
+
+/* Max 30 min depuis le cache historique Panel 04 (channel 12 = rafale) */
+function getMax30(masterId) {
+  if (!window._p4Cache || !window._p4Sensors) return null;
+  const idx = window._p4Sensors.findIndex(s => s.masterId === masterId);
+  if (idx < 0) return null;
+  const entry = window._p4Cache[`${idx}_12`];
+  if (!entry || !entry.points.length) return null;
+  const cutoff = Date.now() - 30 * 60 * 1000;
+  const pts = entry.points.filter(p => p.ts >= cutoff);
+  if (!pts.length) return null;
+  return Math.max(...pts.map(p => p.y));
+}
 const stationMeta = {
   '593494672': { name:'CONTINENTAL', deviceId:'1181746382', cssVar:'--accent2' },
   '743441032': { name:'BIP',         deviceId:'1105200446', cssVar:'--accent'  },
@@ -880,7 +932,8 @@ async function fetchAnemoData() {
       });
 
       const gustState  = gustLevel(peakGust);
-      return { masterId, name: meta.name, cssVar: meta.cssVar, avgSpeed, peakGust, peakGustMs, psi, windDir, gustState, state };
+      const max30 = getMax30(masterId);
+      return { masterId, name: meta.name, cssVar: meta.cssVar, avgSpeed, peakGust, peakGustMs, psi, windDir, gustState, state, max30 };
     }));
 
     let html = '';
@@ -905,10 +958,17 @@ async function fetchAnemoData() {
         ? `<div class="anem-speed-ms">${(Math.round(r.peakGustMs * 10) / 10)} m/s</div>`
         : '';
 
+      const max30Val  = r.max30 != null ? r.max30.toFixed(1) : '—';
+      const max30Unit = r.max30 != null ? '<span class="anem-max30-unit">km/h</span>' : '';
+
       html += `
         <div class="${cardClass}" style="--card-color:${color}">
           <div class="anem-name">${r.name}</div>
           <span class="anem-status ${statusClass}">${statusLabel}</span>
+          <div class="anem-max30">
+            <div class="anem-max30-label">MAX 30'</div>
+            <div class="anem-max30-val">${max30Val}${max30Unit}</div>
+          </div>
           <div class="anem-speed ${gustClass}">${gust}<span>km/h</span><span class="anem-speed-label">vit. max.</span></div>
           ${gustMsLine}
           <div class="anem-meta">
@@ -922,7 +982,7 @@ async function fetchAnemoData() {
     document.getElementById('anemoData').innerHTML = html;
   } catch(e) {
     document.getElementById('anemoData').innerHTML =
-      `<div class="anem-loading" style="color:var(--accent2)">ERREUR: ${e.message}</div>`;
+      `<div class="anem-loading" style="color:var(--danger)">ERREUR: ${e.message}</div>`;
   }
 }
 fetchAnemoData();
@@ -950,9 +1010,9 @@ setInterval(fetchAnemoData, 6000);
 
   const sensors = [
     { masterId:'743441032', deviceId:'1105200446', label:'BIP',         color:'rgba(0,112,204,1)',  fill:'rgba(0,112,204,0.10)', dash:[]    },
-    { masterId:'593494672', deviceId:'1181746382', label:'CONTINENTAL', color:'rgba(229,62,62,1)',  fill:'rgba(229,62,62,0.10)', dash:[2,1] },
+    { masterId:'593494672', deviceId:'1181746382', label:'CONTINENTAL', color:'rgba(217,119,6,1)',  fill:'rgba(217,119,6,0.10)', dash:[2,1] },
     { masterId:'673186439', deviceId:'1258292575', label:'PALAIS 5',    color:'rgba(124,58,237,1)', fill:'rgba(124,58,237,0.10)',dash:[1,1] },
-    { masterId:'799015652', deviceId:'1125124441', label:'PATINOIRE',   color:'rgba(5,150,105,1)',  fill:'rgba(5,150,105,0.10)', dash:[4,1] }
+    { masterId:'799015652', deviceId:'1125124441', label:'PATINOIRE',   color:'rgba(8,145,178,1)',  fill:'rgba(8,145,178,0.10)', dash:[4,1] }
   ];
 
   /* ── Cache append-only (U9) ──────────────────────
@@ -960,6 +1020,8 @@ setInterval(fetchAnemoData, 6000);
      cacheKey = `${sensorIdx}_${channelIndex}`
   ─────────────────────────────────────────────── */
   const historyCache = {};
+  window._p4Cache   = historyCache;
+  window._p4Sensors = sensors;
 
   function cacheKey(sensorIdx, channelIndex) { return `${sensorIdx}_${channelIndex}`; }
 
@@ -1091,14 +1153,12 @@ setInterval(fetchAnemoData, 6000);
         html += `<div class="stats-row"><div class="stats-name" style="color:${sensor.color}">${sensor.label}</div><div class="stats-vals"><span class="stat-item" style="color:var(--text-dim)">—</span></div></div>`;
         return;
       }
-      const min = Math.min(...pts).toFixed(1);
       const max = Math.max(...pts).toFixed(1);
       const avg = (pts.reduce((a,b) => a+b, 0) / pts.length).toFixed(1);
       html += `
         <div class="stats-row">
           <div class="stats-name" style="color:${sensor.color}">${sensor.label}</div>
           <div class="stats-vals">
-            <span class="stat-item"><span class="stat-lbl">MIN&nbsp;</span>${min}&nbsp;km/h</span>
             <span class="stat-item"><span class="stat-lbl">MOY&nbsp;</span>${avg}&nbsp;km/h</span>
             <span class="stat-item"><span class="stat-lbl">MAX&nbsp;</span>${max}&nbsp;km/h</span>
           </div>

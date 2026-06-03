@@ -1,278 +1,166 @@
 # Dashboard Vents — Bruxelles
 
-> Auteur : Elie JESURAN · Créé : 2026-04-22 · Mis à jour : 2026-05-11  
-> Fichier source : `vents.html` · Langue UI : Français
+> Auteur : Elie JESURAN · Mis à jour : 2026-06-03  
+> Fichier principal : `vents.html` · Langue UI : Français
 
 ---
 
 ## Vue d'ensemble
 
-Application web monopage (SPA HTML/CSS/JS) de monitoring des vents à Bruxelles. Affichage en temps réel de 4 anémomètres via l'API Crodeon, historique graphique, webcams live et liens vers les outils météo IRM.
+SPA HTML/CSS/JS — monitoring temps réel de 4 anémomètres (API Crodeon) + historique graphique + webcams live + liens météo IRM.
 
-**Thèmes** : Bright (défaut) / Dark — persisté dans `localStorage`.  
+**Thèmes** : Bright (défaut) / Dark — `localStorage`.  
 **Fonts** : Barlow (UI), Share Tech Mono (valeurs/labels).  
-**Dépendances externes** :
-- [Chart.js](https://cdn.jsdelivr.net/npm/chart.js) + adaptateur date-fns
-- [HLS.js](https://cdn.jsdelivr.net/npm/hls.js@latest) (streaming vidéo)
-- Google Fonts (Barlow, Share Tech Mono)
+**CDN** : Chart.js + chartjs-adapter-date-fns · HLS.js · Google Fonts.
 
 ---
 
-## Architecture — Grille des 4 panels
+## Grille
 
 ```
 ┌─────────────────────────┬──────────┐
-│  Panel 04 · Historique  │          │
-│  (Chart.js, ligne)      │  Panel   │
+│  Panel 04 · Historique  │  Panel   │
 ├─────────────────────────┤  03 ·    │
-│  Panel 02 · Liens       │  Anémo-  │
-│  (Bulletin / INCA)      │  mètres  │
-├─────────────────────────┤          │
+│  Panel 02 · Liens IRM   │  Anémo-  │
+├─────────────────────────┤  mètres  │
 │  Panel 01 · Live Cams   │          │
 └─────────────────────────┴──────────┘
 ```
 
-Sur mobile (< 900 px), la grille passe en colonne unique dans l'ordre : Panel 03 → 04 → 02 → 01.
+Mobile < 900 px : colonne unique, ordre 03 → 04 → 02 → 01.  
+Mobile paysage (`@media (max-width:900px) and (orientation:landscape)`) : affiche `.anem-max30` dans chaque tuile.
 
 ---
 
-## Panel 01 · Live Cam Bruxelles
+## Variables CSS
 
-Deux flux HLS diffusés via `hls.js` (fallback natif pour Safari).
+| Variable | Bright | Dark | Rôle |
+|----------|--------|------|------|
+| `--accent`  | `#0070cc` | `#00c6ff` | BIP (bleu) |
+| `--accent2` | `#d97706` | `#fbbf24` | CONTINENTAL (ambre) |
+| `--accent3` | `#7c3aed` | `#a78bfa` | PALAIS 5 (violet) |
+| `--accent4` | `#0891b2` | `#22d3ee` | PATINOIRE (teal) |
+| `--danger`  | `#e53e3e` | `#ff6b6b` | Alertes, offline, erreurs |
+| `--ok`      | `#059669` | `#34d399` | Badge ONLINE |
 
-| Tuile | ID stream | URL HLS |
-|-------|-----------|---------|
-| Grand Place  | `grandplace`  | `…/vTm9wYDlwkAEO8mH1746783018793.m3u8` |
-| De Brouckère | `debrouckere` | `…/fDdnnEmqOn6Kyy3E1701416388577.m3u8` |
+`--danger` et `--ok` sont distincts des couleurs station pour éviter toute connotation sémantique parasite sur CONTINENTAL/PATINOIRE.
 
-**Ordre d'affichage** : Grand Place en premier, De Brouckère en second.  
-**Mobile** : un seul flux visible à la fois, bouton de bascule `↔️`. Stream par défaut : Grand Place.  
-**Fallback** : si le flux échoue, lien direct vers le `.m3u8` affiché sur fond sombre.  
-**Refresh automatique** : re-initialisation du flux toutes les 55 minutes via `setTimeout` récursif.
+---
+
+## Panel 03 · Anémomètres
+
+**Proxy** : `https://rough-block-b4fe.e-jesuran.workers.dev/api/v2/`  
+**Refresh** : 6 s
+
+### Stations
+
+| Nom | masterId | deviceId | cssVar |
+|-----|----------|----------|--------|
+| CONTINENTAL | 593494672 | 1181746382 | `--accent2` |
+| BIP         | 743441032 | 1105200446 | `--accent`  |
+| PALAIS 5    | 673186439 | 1258292575 | `--accent3` |
+| PATINOIRE   | 799015652 | 1125124441 | `--accent4` |
+
+### Canaux
+
+| Channel | Donnée | Source |
+|---------|--------|--------|
+| 12 (device) | Rafale max — `WIND_PEAK_GUST` (m/s → km/h) | deviceId |
+| 15 (device) | Vitesse moy. (m/s → km/h) | deviceId |
+| 14 (device) | Direction (degrés) | deviceId |
+| 1  (master) | Pression atm. (×0.1 hPa) | masterId |
+
+### Seuils rafale
+
+| Rafale | Classe | Couleur |
+|--------|--------|---------|
+| ≥ 35 km/h | `gust-warning` | `#f59e0b` |
+| > 50 km/h | `gust-alert`   | `var(--danger)` |
+
+### Max 30' mobile paysage
+
+Élément `.anem-max30` dans chaque tuile (caché hors paysage). Calculé depuis `window._p4Cache` (historyCache du Panel 04 exposé en global), canal 12, fenêtre glissante 30 min. Couleur neutre : `var(--text)`.
+
+### Statut opérationnel
+
+Endpoint : `reporters/{masterId}/sensors` — champ `sensors[].state` où `crlink = CONNECTOR_1`.  
+`ONLINE` → badge `--ok`. Autre → badge `--danger`, fond teinté `--danger`.
+
+---
+
+## Panel 04 · Historique
+
+**Endpoint** : `reporters/{masterId}/sensors/{deviceId}/channels/{12|15}/measurements`  
+**Refresh** : 30 s · **Défaut** : 2 h · fenêtres : 15 min → 84 h
+
+**Toggle** : channel 12 (VIT. MAX.) ↔ 15 (VIT. MOY.) via bouton `#channelToggle`.
+
+**Cache append-only** : `historyCache[${sensorIdx}_${channelIndex}]` = `{ points:[{ts,y}], earliestMs }`. Exposé via `window._p4Cache` et `window._p4Sensors` pour Panel 03.
+
+### Datasets Chart.js
+
+| Station | Couleur | `borderDash` |
+|---------|---------|-------------|
+| BIP         | `rgba(0,112,204,1)`  | `[]`    |
+| CONTINENTAL | `rgba(217,119,6,1)`  | `[2,1]` |
+| PALAIS 5    | `rgba(124,58,237,1)` | `[1,1]` |
+| PATINOIRE   | `rgba(8,145,178,1)`  | `[4,1]` |
+
+`tension: 0.1` · Ligne seuil 35 km/h : tirets ambre via plugin `thresholdPlugin`.
+
+**Stats panel** (droite du graphique) : MOY + MAX par station, police 12 px / label 10 px.
+
+---
+
+## Panel 01 · Webcams
+
+| Caméra | Stream |
+|--------|--------|
+| Grand Place  | `vTm9wYDlwkAEO8mH1746783018793.m3u8` |
+| De Brouckère | `fDdnnEmqOn6Kyy3E1701416388577.m3u8` |
+
+HLS.js + fallback natif Safari. Refresh automatique ~55 min. Mobile : 1 flux à la fois, bouton `↔️`.
 
 ---
 
 ## Panel 02 · Liens météo
 
-Deux boutons-liens externes :
-
-| Bouton | Destination |
-|--------|-------------|
-| Bulletin météo | `mymeteo.be` — prévisions texte IRM |
-| INCA | `mymeteo.be/incaBe` — carte météo interactive |
+Bulletin météo → `mymeteo.be` · INCA → `mymeteo.be/incaBe` (nouvel onglet).
 
 ---
 
-## Panel 03 · Anémomètres (état actuel)
+## Infrastructure & sécurité
 
-### API Crodeon
-
-- **Base URL** : `https://rough-block-b4fe.e-jesuran.workers.dev/api/v2/` (proxy Cloudflare Worker)
-- **Authentification** : gérée côté Worker via secret `CRODEON_API_KEY` (clé absente du code client)
-- **Endpoint utilisé** : `reporters/{masterId}/measurements/latest`
-- **Refresh** : toutes les 10 secondes
-
-### Stations
-
-| Nom | Master ID | Device ID | Couleur CSS |
-|-----|-----------|-----------|-------------|
-| CONTINENTAL | 593494672 | 1181746382 | `--accent2` (rouge) |
-| BIP          | 743441032 | 1105200446 | `--accent`  (bleu)  |
-| PALAIS 5     | 673186439 | 1258292575 | `--accent3` (violet)|
-| PATINOIRE    | 799015652 | 1125124441 | `--accent4` (vert)  |
-
-### Canaux lus par station
-
-| Channel index | Donnée | Source |
-|---------------|--------|--------|
-| 12 (device)   | Rafale max (m/s → km/h) — `WIND_PEAK_GUST` | device_id |
-| 15 (device)   | Vitesse moy. (m/s → km/h) — affiché en meta | device_id |
-| 14 (device)   | Direction (degrés) | device_id |
-| 1  (master)   | Pression atm. (×0.1 hPa) | master_id |
-
-### Affichage carte
-
-- **`anem-speed`** : rafale (channel 12, m/s → km/h)
-- **Meta "Moy."** : vitesse moyenne (channel 15)
-- Les seuils d'alerte s'appliquent à la rafale réelle
-
-Seuils d'alerte rafale :
-
-| Rafale | Classe CSS | Couleur |
-|--------|-----------|---------|
-| ≥ 35 km/h | `gust-warning` | Ambre `#f59e0b` |
-| > 50 km/h | `gust-alert`   | Rouge `--accent2` |
-
-### Statut opérationnel
-
-Endpoint supplémentaire appelé en parallèle : `reporters/{masterId}/sensors`  
-Le champ `sensors[].state` (source : `crlink = CONNECTOR_1`) détermine l'état affiché.
-
-| État API | Rendu carte |
-|----------|-------------|
-| `ONLINE`  | Badge vert discret, carte normale |
-| `OFFLINE` / autre | Badge rouge, fond légèrement teinté rouge |
+| Élément | Détail |
+|---------|--------|
+| Worker proxy | `rough-block-b4fe.e-jesuran.workers.dev` — injecte `CRODEON_API_KEY`, cache Cache API (10 s latest / 30 s historique) |
+| Clé API | Secret Worker, absente du code client |
+| HLS | Streams publics, URLs en clair — acceptable |
+| CSP / SRI | Non implémentés — backlog I4 |
 
 ---
 
-## Panel 04 · Historique des vitesses
+## Fichiers
 
-### Source de données
-
-Endpoint : `reporters/{masterId}/sensors/{deviceId}/channels/12/measurements`  
-Paramètres : `start_time`, `end_time`, `page=0`, `page_size=10000`  
-Refresh : toutes les 30 secondes
-
-### Fenêtres temporelles disponibles
-
-```
-15 min · 30 min · 1 h · 2 h (défaut) · 3 h · 6 h · 9 h · 12 h
-18 h · 24 h · 36 h · 48 h · 60 h · 72 h · 84 h
-```
-
-L'axe X s'adapte automatiquement (unité minute / heure, stepSize variable).
-
-### Datasets Chart.js
-
-| Label | Couleur bordure | `borderDash` | `tension` |
-|-------|----------------|-------------|-----------|
-| BIP          | `rgba(0,112,204,1)`  | `[]` (pleine) | `0.1` |
-| CONTINENTAL  | `rgba(229,62,62,1)`  | `[2,1]`       | `0.1` |
-| PALAIS 5     | `rgba(124,58,237,1)` | `[1,1]`       | `0.1` |
-| PATINOIRE    | `rgba(5,150,105,1)`  | `[3,1]`       | `0.1` |
-
-### ⚠️ Améliorations prévues — layout Panel 04
-
-**Option A — Chips de sélection temporelle**  
-Remplacer les boutons `◂ / ▸` par une rangée de pills cliquables listant toutes les fenêtres disponibles. La fenêtre active est mise en évidence.
-
-**Option B — Graphique enrichi**  
-- Ligne de référence horizontale en pointillés ambrés au seuil 35 km/h
-- Tooltip enrichi : 4 valeurs + mini-classement instantané (station la plus ventée en tête)
-
-**Option C — Split layout**  
-Diviser le panel : graphique à gauche (75%) + mini-tableau récapitulatif à droite (25%) affichant pour chaque station la vitesse min / moy / max sur la fenêtre sélectionnée.
-
----
-
-## Performance — Optimisation des appels Worker
-
-La limite Cloudflare Workers gratuit est de **100 000 requêtes/jour** (navigateur → Worker).
-
-### Cache côté Worker (Cloudflare Cache API)
-
-Le Worker met en cache la réponse Crodeon dans la **Cache API Cloudflare** (gratuite, sans KV). Son intérêt principal est de **mutualiser les appels entre utilisateurs simultanés** : sans cache, 10 utilisateurs = ×10 les appels vers Crodeon ; avec cache, ça reste 1 appel/TTL quelle que soit la charge.
-
-> Un cache côté navigateur (anti re-render) n'a pas été retenu : les valeurs d'anémomètre changent à chaque poll de 10s, le taux de cache hit serait négligeable et la complexité ajoutée injustifiée.
-
-#### TTL appliqués
-
-| Endpoint | TTL cache Worker |
-|----------|-----------------|
-| `measurements/latest` (Panel 03) | 10 secondes |
-| `measurements` historique (Panel 04) | 30 secondes |
-
-#### Gain estimé (appels Worker → Crodeon, par utilisateur)
-
-| Source | Sans cache | Avec cache Worker |
-|--------|-----------|-------------------|
-| Panel 03 — 4 stations × 6/min | 34 560 /24h | **8 640 /24h** |
-| Panel 04 — 4 stations × 2/min | 11 520 /24h | **≤ 11 520 /24h** |
-
-#### Implémentation (`worker.js`)
-
-```js
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    url.hostname = 'api.crodeon.com';
-
-    const cacheKey = url.toString();
-    const cache = caches.default;
-
-    const cached = await cache.match(cacheKey);
-    if (cached) return cached;
-
-    const response = await fetch(url, {
-      headers: {
-        ...Object.fromEntries(request.headers),
-        'X-API-KEY': env.CRODEON_API_KEY
-      }
-    });
-
-    if (!response.ok) {
-      const headers = new Headers(response.headers);
-      headers.set('Access-Control-Allow-Origin', '*');
-      return new Response(response.body, { status: response.status, headers });
-    }
-
-    const ttl = url.pathname.includes('latest') ? 10 : 30;
-    const headers = new Headers(response.headers);
-    headers.set('Access-Control-Allow-Origin', '*');
-    headers.set('Cache-Control', `public, max-age=${ttl}`);
-
-    const cachedResponse = new Response(response.body, { status: response.status, headers });
-    cache.put(cacheKey, cachedResponse.clone());
-    return cachedResponse;
-  }
-};
-```
-
-**Statut** : déployé — validation en cours (résultats attendus le 2026-05-12).
-
----
-
-## Sécurité
-
-### ✅ Réalisé
-
-| Risque | Solution mise en place |
-|--------|----------------------|
-| Clé API exposée | Proxy Cloudflare Worker — clé stockée en secret, absente du code client. Ancienne clé révoquée, nouveau token en place. |
-
-### ⚠️ Points restants
-
-| Risque | Description | Action recommandée |
-|--------|-------------|-------------------|
-| Streams HLS non authentifiés | URLs `.m3u8` en clair dans le HTML | Acceptable (streams publics) |
-| Pas de CSP | Aucune Content-Security-Policy déclarée | Ajouter header CSP via Cloudflare Pages |
-| Dépendances CDN sans SRI | Chart.js, HLS.js depuis jsdelivr | Ajouter attributs `integrity` (Subresource Integrity) |
-
----
-
-## Infrastructure
-
-| Service | Usage |
-|---------|-------|
-| Cloudflare Worker `rough-block-b4fe.e-jesuran.workers.dev` | Proxy API Crodeon — injecte la clé côté serveur, cache les réponses (TTL 10 s / 30 s), expose les endpoints sans authentification client |
-
-## Fichiers associés
-
-| Fichier | Usage |
-|---------|-------|
-| `vents.html` | Application principale |
-| `worker.js` | Proxy Cloudflare Worker avec cache |
-| `logo.png` | Logo topbar (thème bright) |
-| `logo_white.png` | Logo topbar (thème dark) |
+| Fichier | Rôle |
+|---------|------|
+| `vents.html` | Application principale (tout-en-un) |
+| `worker.js` | Proxy Cloudflare Worker |
+| `documentation/index.html` | Guide utilisateur |
+| `documentation/screenshots/` | Captures (7 fichiers JPEG) — `vue-globale-annotee` et `panel-alerte` manquants |
+| `logo.png` / `logo_white.png` | Logo topbar bright / dark |
 | `manifest.json` | PWA manifest |
 
 ---
 
-## Backlog des améliorations
+## Backlog
 
-| Numéro | Priorité | Tâche | Panel | Comm |
-|--------|----------|-------|-------|------|
-| I1 | ✅ Fait | Sécuriser la clé API (Cloudflare Worker proxy) | — |------|
-| I2 | ✅ Fait | Révoquer l'ancienne clé Crodeon + nouveau token | — |------|
-| U1 | ✅ Fait | Inverser l'ordre Grand Place / De Brouckère | 01 |------|
-| U2 | ✅ Fait | Refresh automatique des streams HLS (~55 min) | 01 |------|
-| U3 | ✅ Fait | Afficher le statut opérationnel de chaque anémomètre | 03 |------|
-| U4 | ✅ Fait | Courbes moins arrondies (`tension: 0.1`) + `borderDash` par station | 04 |------|
-| I3 | ✅ Fait | Cache Worker (Cache API Cloudflare, TTL 10 s / 30 s) | — |------|
-| U5 | ✅ Fait | Refonte layout Panel 04 (ligne seuil 35 km/h, split stats) | 04 |------|
-| U5 | 🟡 Moyenne | Refonte layout Panel 04 (chips) | 04 |------|
-| U6 | ✅ Fait | Connecter l'API rafales réelles (channel 12) — estimation supprimée | 03/04 | anem-speed = rafale réelle, Moy. en meta, graphique sur channel 12 |
-| U7 | ✅ Fait | Bascule TOP / AVERAGE dans le graphique (channel 12 ↔ 15) | 04 | Bouton toggle dans les contrôles du panel |
-| U8 | ✅ Fait | Quand la tuile passe en mode warning ou alert, ajouter (au meme niveau que top speed) la valeur du Top Speed en m/s. | 03 |----|
-| U9 | ✅ Fait | Pour ne pas devoir recharger à chaque fois l'historique, et gagner en fluidité, utiliser un système de cache | 04 ||
-| I4 | 🟢 Basse | Ajouter CSP + SRI sur les dépendances CDN | — | |
+| # | État | Tâche | Panel |
+|---|------|-------|-------|
+| I1–I3 | ✅ | Sécurité clé API, cache Worker | — |
+| U1–U9 | ✅ | Ordre cams, refresh HLS, statut, tensions, rafales réelles, toggle canal, m/s alert, cache historique | 01–04 |
+| U10 | ✅ | Couleurs stations sans connotation rouge/vert (--danger/--ok séparés) | 03 |
+| U11 | ✅ | Max 30' mobile paysage depuis historyCache Panel 04 | 03 |
+| U12 | ✅ | Stats panel : suppression MIN, police agrandie | 04 |
+| I4 | 🟢 Basse | CSP + SRI dépendances CDN | — |
+| DOC | 🟡 | Capturer `vue-globale-annotee` et `panel-alerte` | doc |
