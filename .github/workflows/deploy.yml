@@ -1,11 +1,12 @@
-name: Deploy
+name: Deploy to Infomaniak
 
 on:
   push:
     branches: [main]
+    paths: [index.html]
 
 jobs:
-  ftp:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,11 +15,12 @@ jobs:
         run: cp vents.html index.html
 
       - name: Upload index.html via FTP
-        run: |
-          curl --silent --show-error --fail \
-            -T index.html \
-            "ftp://${{ secrets.FTP_HOST }}${{ secrets.FTP_REMOTE_PATH }}index.html" \
-            --user "${{ secrets.FTP_USER }}:${{ secrets.FTP_PASS }}" \
-            --ftp-create-dirs \
-            --ssl-reqd \
-            --insecure
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_PATH }}
+          local-dir: ./
+          include: |
+            index.html
