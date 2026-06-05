@@ -1,0 +1,5 @@
+{
+  "name": "dashboard-vents",
+  "compatibility_date": "2026-06-02",
+  "main": "worker.js"
+}

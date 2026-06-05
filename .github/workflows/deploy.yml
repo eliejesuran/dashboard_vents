@@ -1,0 +1,22 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  ftp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync vents.html → index.html
+        run: cp vents.html index.html
+
+      - name: Upload index.html via FTP
+        run: |
+          curl --silent --show-error --fail \
+            -T index.html \
+            "ftp://${{ secrets.FTP_HOST }}${{ secrets.FTP_REMOTE_PATH }}index.html" \
+            --user "${{ secrets.FTP_USER }}:${{ secrets.FTP_PASS }}" \
+            --ftp-create-dirs

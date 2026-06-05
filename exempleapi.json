@@ -1,0 +1,267 @@
+{
+  "master_id": {
+    "id": 593494672
+  },
+  "device_id": {
+    "id": 1181746382
+  },
+  "crlink": "CONNECTOR_1",
+  "label": "Davis Anemometer 7911/6410",
+  "channels": [
+    {
+      "master_id": {
+        "id": 593494672
+      },
+      "device_id": {
+        "id": 1181746382
+      },
+      "index": 0,
+      "label": "Pulses",
+      "disabled": true,
+      "type": "PULSES",
+      "unit": "RAW",
+      "flags": [
+        "FAST_ALARMING"
+      ],
+      "base_unit": {
+        "exponent": 0,
+        "unit": "raw",
+        "short_unit": ""
+      },
+      "display_unit": {
+        "exponent": 0,
+        "unit": "raw",
+        "short_unit": ""
+      },
+      "label_mapping": {}
+    },
+    {
+      "master_id": {
+        "id": 593494672
+      },
+      "device_id": {
+        "id": 1181746382
+      },
+      "index": 1,
+      "label": "Analog voltage",
+      "disabled": true,
+      "type": "ANALOG",
+      "unit": "PERCENTAGE",
+      "flags": [
+        "FAST_ALARMING"
+      ],
+      "base_unit": {
+        "exponent": -2,
+        "unit": "percentage",
+        "short_unit": "%"
+      },
+      "display_unit": {
+        "exponent": -2,
+        "unit": "percentage",
+        "short_unit": "%"
+      },
+      "label_mapping": {}
+    },
+    {
+      "master_id": {
+        "id": 593494672
+      },
+      "device_id": {
+        "id": 1181746382
+      },
+      "index": 2,
+      "label": "Average pulse rate",
+      "disabled": true,
+      "type": "PULSE_AVERAGE_RATE",
+      "unit": "PULSES_PER_SECOND",
+      "flags": [
+        "FAST_ALARMING"
+      ],
+      "base_unit": {
+        "exponent": -2,
+        "unit": "pulses per second",
+        "short_unit": "/s"
+      },
+      "display_unit": {
+        "exponent": -2,
+        "unit": "pulses per second",
+        "short_unit": "/s"
+      },
+      "label_mapping": {}
+    },
+    {
+      "master_id": {
+        "id": 593494672
+      },
+      "device_id": {
+        "id": 1181746382
+      },
+      "index": 3,
+      "label": "Peak pulse rate",
+      "disabled": true,
+      "type": "PULSE_PEAK_RATE",
+      "unit": "PULSES_PER_SECOND",
+      "flags": [
+        "FAST_ALARMING"
+      ],
+      "base_unit": {
+        "exponent": -1,
+        "unit": "pulses per second",
+        "short_unit": "/s"
+      },
+      "display_unit": {
+        "exponent": -1,
+        "unit": "pulses per second",
+        "short_unit": "/s"
+      },
+      "label_mapping": {}
+    },
+    {
+      "master_id": {
+        "id": 593494672
+      },
+      "device_id": {
+        "id": 1181746382
+      },
+      "index": 11,
+      "label": "Peak wind gust (km/h)",
+      "disabled": true,
+      "type": "WIND_PEAK_GUST",
+      "unit": "METER_PER_HOUR",
+      "flags": [
+        "LINEAR_EQUATION",
+        "FAST_ALARMING"
+      ],
+      "base_unit": {
+        "exponent": 2,
+        "unit": "meter per hour",
+        "short_unit": "m/h"
+      },
+      "display_unit": {
+        "exponent": -1,
+        "unit": "kilometer per hour",
+        "short_unit": "km/h"
+      },
+      "label_mapping": {}
+    },
+    {
+      "master_id": {
+        "id": 593494672
+      },
+      "device_id": {
+        "id": 1181746382
+      },
+      "index": 12,
+      "label": "Peak wind gust",
+      "disabled": false,
+      "type": "WIND_PEAK_GUST",
+      "unit": "METER_PER_SECOND",
+      "flags": [
+        "LINEAR_EQUATION",
+        "FAST_ALARMING"
+      ],
+      "base_unit": {
+        "exponent": -1,
+        "unit": "meter per second",
+        "short_unit": "m/s"
+      },
+      "display_unit": {
+        "exponent": -1,
+        "unit": "meter per second",
+        "short_unit": "m/s"
+      },
+      "label_mapping": {}
+    },
+    {
+      "master_id": {
+        "id": 593494672
+      },
+      "device_id": {
+        "id": 1181746382
+      },
+      "index": 13,
+      "label": "Average speed (km/h)",
+      "disabled": false,
+      "type": "WIND_AVERAGE_SPEED",
+      "unit": "METER_PER_HOUR",
+      "flags": [
+        "LINEAR_EQUATION",
+        "FAST_ALARMING"
+      ],
+      "base_unit": {
+        "exponent": 2,
+        "unit": "meter per hour",
+        "short_unit": "m/h"
+      },
+      "display_unit": {
+        "exponent": -1,
+        "unit": "kilometer per hour",
+        "short_unit": "km/h"
+      },
+      "label_mapping": {}
+    },
+    {
+      "master_id": {
+        "id": 593494672
+      },
+      "device_id": {
+        "id": 1181746382
+      },
+      "index": 14,
+      "label": "Wind direction",
+      "disabled": false,
+      "type": "WIND_DIRECTION",
+      "unit": "DEGREE",
+      "flags": [
+        "LINEAR_EQUATION",
+        "FAST_ALARMING"
+      ],
+      "base_unit": {
+        "exponent": 0,
+        "unit": "degrees",
+        "short_unit": "°"
+      },
+      "display_unit": {
+        "exponent": 0,
+        "unit": "degrees",
+        "short_unit": "°"
+      },
+      "label_mapping": {}
+    },
+    {
+      "master_id": {
+        "id": 593494672
+      },
+      "device_id": {
+        "id": 1181746382
+      },
+      "index": 15,
+      "label": "Average speed",
+      "disabled": false,
+      "type": "WIND_AVERAGE_SPEED",
+      "unit": "METER_PER_SECOND",
+      "flags": [
+        "LINEAR_EQUATION",
+        "FAST_ALARMING"
+      ],
+      "base_unit": {
+        "exponent": -1,
+        "unit": "meter per second",
+        "short_unit": "m/s"
+      },
+      "display_unit": {
+        "exponent": -1,
+        "unit": "meter per second",
+        "short_unit": "m/s"
+      },
+      "label_mapping": {}
+    }
+  ],
+  "type": "SENSOR_INPUT_ADAPTER",
+  "state": "CONFIG_APPLYING",
+  "state_error": "NONE",
+  "measurement_error": "NO_ERROR",
+  "template": {
+    "id": 102
+  }
+}
