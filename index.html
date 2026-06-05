@@ -22,7 +22,7 @@
     --surface2:  #f8fafc;
     --border:    #dde3ec;
     --accent:    #0070cc;
-    --accent2:   #d97706;
+    --accent2:   #fc8dfc;
     --accent3:   #7c3aed;
     --accent4:   #0891b2;
     --danger:    #e53e3e;
@@ -43,7 +43,7 @@
     --surface2:  #1a2236;
     --border:    #1e2d45;
     --accent:    #00c6ff;
-    --accent2:   #fbbf24;
+    --accent2:   #ec25fa;
     --accent3:   #a78bfa;
     --accent4:   #22d3ee;
     --danger:    #ff6b6b;
@@ -898,7 +898,7 @@ const stationMeta = {
   '593494672': { name:'CONTINENTAL', deviceId:'1181746382', cssVar:'--accent2' },
   '743441032': { name:'BIP',         deviceId:'1105200446', cssVar:'--accent'  },
   '673186439': { name:'PALAIS 5',    deviceId:'1258292575', cssVar:'--accent3' },
-  '799015652': { name:'PATINOIRE',   deviceId:'1125124441', cssVar:'--accent4' }
+  '799015652': { name:'BME MOBILE',   deviceId:'1125124441', cssVar:'--accent4' }
 };
 
 async function fetchAnemoData() {
@@ -991,7 +991,7 @@ setInterval(fetchAnemoData, 15000);
 /* ══ PANEL 4 — GRAPHIQUE ══════════════════════════ */
 (function() {
   const STEPS = [15, 30, 60, 120, 180, 360, 540, 720, 1080, 1440, 2160, 2880, 3600, 4320, 5040];
-  const DEFAULT_IDX = 3;
+  const DEFAULT_IDX = 1;
   let stepIdx = DEFAULT_IDX;
 
   function stepLabel(minutes) {
@@ -1010,9 +1010,9 @@ setInterval(fetchAnemoData, 15000);
 
   const sensors = [
     { masterId:'743441032', deviceId:'1105200446', label:'BIP',         color:'rgba(0,112,204,1)',  fill:'rgba(0,112,204,0.10)', dash:[]    },
-    { masterId:'593494672', deviceId:'1181746382', label:'CONTINENTAL', color:'rgba(217,119,6,1)',  fill:'rgba(217,119,6,0.10)', dash:[2,1] },
+    { masterId:'593494672', deviceId:'1181746382', label:'CONTINENTAL', color:'rgba(236,37,250,1)',  fill:'rgba(252,141,252,0.10)', dash:[2,1] },
     { masterId:'673186439', deviceId:'1258292575', label:'PALAIS 5',    color:'rgba(124,58,237,1)', fill:'rgba(124,58,237,0.10)',dash:[1,1] },
-    { masterId:'799015652', deviceId:'1125124441', label:'PATINOIRE',   color:'rgba(8,145,178,1)',  fill:'rgba(8,145,178,0.10)', dash:[4,1] }
+    { masterId:'799015652', deviceId:'1125124441', label:'BME MOBILE',   color:'rgba(8,145,178,1)',  fill:'rgba(8,145,178,0.10)', dash:[4,1] }
   ];
 
   /* ── Cache append-only (U9) ──────────────────────
