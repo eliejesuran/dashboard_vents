@@ -19,4 +19,6 @@ jobs:
             -T index.html \
             "ftp://${{ secrets.FTP_HOST }}${{ secrets.FTP_REMOTE_PATH }}index.html" \
             --user "${{ secrets.FTP_USER }}:${{ secrets.FTP_PASS }}" \
-            --ftp-create-dirs
+            --ftp-create-dirs \
+            --ssl-reqd \
+            --insecure
