@@ -1,7 +1,7 @@
 # Dashboard Vents — Bruxelles
 
-> Auteur : Elie JESURAN · Mis à jour : 2026-06-03  
-> Fichier principal : `vents.html` · Langue UI : Français
+> Auteur : Elie JESURAN · Mis à jour : 2026-06-05  
+> Fichier principal : `index.html` · Langue UI : Français
 
 ---
 
@@ -144,7 +144,7 @@ Bulletin météo → `mymeteo.be` · INCA → `mymeteo.be/incaBe` (nouvel onglet
 
 | Fichier | Rôle |
 |---------|------|
-| `vents.html` | Application principale (tout-en-un) |
+| `index.html` | Application principale (tout-en-un) |
 | `worker.js` | Proxy Cloudflare Worker |
 | `documentation/index.html` | Guide utilisateur |
 | `documentation/screenshots/` | Captures (7 fichiers JPEG) — `vue-globale-annotee` et `panel-alerte` manquants |

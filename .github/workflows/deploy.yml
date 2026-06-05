@@ -11,9 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Sync vents.html → index.html
-        run: cp vents.html index.html
-
       - name: Upload index.html via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:

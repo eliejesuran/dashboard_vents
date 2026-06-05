@@ -16,7 +16,7 @@ const OUT  = path.join(__dirname, 'documentation/screenshots');
   // ── VUE GLOBALE BRIGHT ──────────────────────────
   const page = await browser.newPage();
   await page.setViewportSize({ width: 1440, height: 860 });
-  await page.goto(BASE + '/vents.html', { waitUntil: 'networkidle' });
+  await page.goto(BASE + '/', { waitUntil: 'networkidle' });
   await page.evaluate(() => {
     const t = localStorage.getItem('dashboard-theme');
     if (t === 'dark') document.getElementById('themeToggle').click();

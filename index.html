@@ -1366,6 +1366,31 @@ document.getElementById('refreshBtn').addEventListener('click', refreshAll);
     setTimeout(() => { ind.style.transition = ''; }, 350);
   }, { passive: true });
 })();
+
+/* ══ WATCHDOG PWA — rechargement unique ══════════ */
+(function() {
+  const KEY = 'pwa_watchdog_reloaded';
+  if (sessionStorage.getItem(KEY)) return;
+
+  setTimeout(function() {
+    var reasons = [];
+
+    // CDN Chart.js et initialisation du graphique
+    if (typeof Chart === 'undefined' || !window.myChart) reasons.push('chart');
+
+    // CDN HLS.js (lecture vidéo)
+    if (typeof Hls === 'undefined') reasons.push('hls');
+
+    // Panneau anémomètres encore sur l'état initial "CHARGEMENT"
+    var anemoEl = document.getElementById('anemoData');
+    if (anemoEl && anemoEl.textContent.includes('CHARGEMENT')) reasons.push('anemo');
+
+    if (!reasons.length) return;
+
+    sessionStorage.setItem(KEY, '1');
+    location.reload();
+  }, 12000);
+})();
 </script>
 </body>
 </html>
