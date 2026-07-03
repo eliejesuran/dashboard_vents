@@ -963,7 +963,10 @@ scheduleRefresh('debrouckere');
    rappel à ~85-90%, vérifié en direct contre un comptage manuel.
    Coût : ~13-15s de calcul par caméra en WASM, d'où l'intervalle long. */
 (function initCrowdCounters() {
-  const MODEL_URL = 'models/yolo26n.onnx';
+  // Servi depuis GitHub (pas déployé sur l'hébergement FTP Infomaniak, quota 10 Mo
+  // trop petit pour ce fichier) — épinglé à un commit précis pour rester en phase avec
+  // le format de sortie du modèle attendu par le code de parsing ci-dessous.
+  const MODEL_URL = 'https://raw.githubusercontent.com/eliejesuran/dashboard_vents/771bf88/models/yolo26n.onnx';
   const TILE_SIZE = 1280;
   const GRID_COLS = 4, GRID_ROWS = 4, TILE_OVERLAP = 0.15; // calibré empiriquement (cf. CLAUDE.md)
   const CONFIDENCE_THRESHOLD = 0.15; // plus bas qu'en plan unique : la densité de cette scène
