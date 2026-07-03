@@ -1,17 +1,17 @@
 # Dashboard Vents — Bruxelles
 
-> Auteur : Elie JESURAN · Mis à jour : 2026-06-05  
+> Auteur : Elie JESURAN · Mis à jour : 2026-07-03  
 > Fichier principal : `index.html` · Langue UI : Français
 
 ---
 
 ## Vue d'ensemble
 
-SPA HTML/CSS/JS — monitoring temps réel de 4 anémomètres (API Crodeon) + historique graphique + webcams live + liens météo IRM.
+SPA HTML/CSS/JS — monitoring temps réel de 4 anémomètres (API Crodeon) + historique graphique + webcams live + comptage de foule (Grand Place) + liens météo IRM.
 
 **Thèmes** : Bright (défaut) / Dark — `localStorage`.  
 **Fonts** : Barlow (UI), Share Tech Mono (valeurs/labels).  
-**CDN** : Chart.js + chartjs-adapter-date-fns · HLS.js · Google Fonts.
+**CDN** : Chart.js + chartjs-adapter-date-fns · HLS.js · onnxruntime-web · Google Fonts.
 
 ---
 
@@ -116,10 +116,38 @@ Endpoint : `reporters/{masterId}/sensors` — champ `sensors[].state` où `crlin
 
 | Caméra | Stream |
 |--------|--------|
-| Grand Place  | `vTm9wYDlwkAEO8mH1746783018793.m3u8` |
-| De Brouckère | `fDdnnEmqOn6Kyy3E1701416388577.m3u8` |
+| Grand Place  | `vTm9wYDlwkAEO8mH1746783018793.m3u8` (proxifié via Worker, voir Comptage de foule) |
+| De Brouckère | `fDdnnEmqOn6Kyy3E1701416388577.m3u8` (proxifié également depuis l'ajout du comptage sur cette caméra) |
 
-HLS.js + fallback natif Safari. Refresh automatique ~55 min. Mobile : 1 flux à la fois, bouton `↔️`.
+HLS.js + fallback natif Safari. Refresh automatique 90 min. Mobile : 1 flux à la fois, bouton `↔️`.
+
+### Comptage de foule (Grand Place + De Brouckère)
+
+Détection de personnes en temps réel, **100 % côté navigateur** (aucun ML serveur), chiffre affiché à côté de chaque flux vidéo. Motivation : fermeture de la place en cas d'affluence excessive lors d'événements. Une seule session ONNX (un seul jeu de poids en mémoire) partagée entre les deux caméras — l'inférence est de toute façon séquentielle, pas de gain à en charger deux.
+
+**Modèle** : YOLO26n (Ultralytics, nano, COCO 80 classes) → `models/yolo26n.onnx`, entrée **1280×1280** par tuile. Tête NMS-free (« one-to-one ») : sortie `(1,300,6)` = `[x1,y1,x2,y2,confiance,classe]` déjà dédupliquée par tuile — un NMS/dédoublonnage maison (IoU > 0.4) est refait côté JS entre tuiles, lui, pour fusionner les détections aux chevauchements. Classe personne = `0`.
+
+**Découpage en tuiles (SAHI)** : une seule passe plein-cadre à 1280px sous-détectait massivement sur ce plan large/aérien — vérifié en direct contre un comptage manuel : ~26 détectés pour ~260 personnes réelles sur Grand Place un jour de forte affluence. Grille **4×4 (16 tuiles, chevauchement 15 %)**, chaque tuile repassée par le modèle à pleine résolution 1280px : fait remonter le rappel à ~85-90 % (vérifié : 213-232 détectés pour ~240-266 réels selon les échantillons). Le seuil de confiance a été baissé en même temps (voir ci-dessous) — les deux leviers ensemble expliquent l'essentiel du gain, la grille seule ou le seuil seul ne suffisaient pas.
+
+**Runtime** : `onnxruntime-web` (CDN jsDelivr, version épinglée) — `executionProviders:['webgpu']` puis repli `['wasm']`. WebGPU, quand disponible, s'est révélé nettement plus rapide que WASM en test (cycles complets en quelques secondes contre ~13-15 s/caméra en WASM) — les temps ci-dessous sont le pire cas (repli WASM), à considérer comme un plafond, pas la norme.
+
+**Seuil de confiance** : `0.15` (baissé de 0.25 après calibration contre un comptage manuel réel — sur une scène aussi dense, la confiance par détection est structurellement plus basse, ce n'est pas juste un problème de résolution). En dessous de ~0.10-0.15, le bruit augmente plus vite que le rappel (faux positifs constatés, ex. structure de toit fixe détectée comme personne à seuil très bas — voir masque de zone ci-dessous). Le comptage reste une **sous-estimation** par nature (détecteur par boîtes englobantes, sujets minuscules/très occlus) — à traiter comme une estimation basse, pas un chiffre exact.
+
+**Cadence** : boucle auto-replanifiée (`setTimeout` en chaîne, pas un `setInterval` fixe) — chaque cycle complet (Grand Place puis De Brouckère, 32 tuiles au pire cas) attend sa propre fin avant de programmer le suivant, avec 2 s de battement. Aucun chevauchement possible même si un cycle dépasse largement le nominal, contrairement à un intervalle fixe. Pause automatique si onglet masqué (`visibilitychange`) ou tuile non visible (bascule mobile, par caméra) — vérifié par sondage `display` dans la boucle, aucune modification de `initLiveVideo()`.
+
+**RAM** : mesure directe (`performance.memory`, tas JS uniquement) : ~28 Mo au repos, pics à ~53 Mo pendant l'inférence — modeste, mais **ne capture ni la mémoire WASM d'onnxruntime ni les buffers WebGPU**, qui dominent probablement l'empreinte réelle (`performance.measureUserAgentSpecificMemory()` donnerait une mesure complète mais exige des headers `Cross-Origin-Isolation` non configurés ici). Pas de mesure précise du total process — à vérifier au besoin via le Gestionnaire des tâches Chrome (Shift+Échap) en conditions réelles.
+
+**RGPD** : classe COCO « personne » uniquement — pas de reconnaissance faciale, pas d'embeddings, pas de ré-identification inter-frames. Les canvas de capture ne sont jamais sérialisés (`toDataURL`/`toBlob`) ni transmis ; seul le compte agrégé (entier) est conservé, par caméra.
+
+**Historique** : `localStorage['dashboard-crowd-history-grandplace']` et `['dashboard-crowd-history-debrouckere']`, tableaux `{ts,count}` séparés, fenêtre de rétention 7 j (élagage à chaque écriture). **Local à l'appareil/navigateur qui fait tourner la détection** — pas d'historique centralisé entre viewers (nécessiterait un petit endpoint Worker + KV, juste des nombres, non implémenté). Exposés via `window._p1CrowdHistoryGrandplace` / `window._p1CrowdHistoryDebrouckere` (même convention que `window._p4Cache`).
+
+**Nuit** : caméras RGB standard, pas de mode nuit. Boost contraste/luminosité canvas (`ctx.filter`) si luminance moyenne échantillonnée < 70/255 (calculé une fois sur l'image source avant découpage en tuiles, pas par tuile) — correctif limité, pas une solution : précision nocturne intrinsèquement dégradée (limite matérielle de la caméra, pas du modèle).
+
+**Proxy vidéo requis** (bloquant, pas optionnel, pour les deux caméras) : `livecam.brucity.be` n'envoie aucun header CORS → `canvas.getImageData()` lève `SecurityError` sur un flux direct, et `crossOrigin="anonymous"` seul casse la lecture (aucun ACAO envoyé). Le Worker proxifie manifeste + segments sous `/hls/*` (générique, pas spécifique à un flux), réécrit les URIs du `.m3u8` (relatives ou absolues) pour qu'elles repassent par le proxy, et supporte les requêtes `Range`/`206` — requis par les moteurs de lecture HLS natifs, qui échouent silencieusement (`NotSupportedError`) sans ce support. Voir Infrastructure ci-dessous.
+
+**Masque de zone (ROI) — plus juste "backlog lointain"** : constaté en test qu'à seuil bas, le modèle détecte parfois une structure de toit fixe (scène/stand) comme personne. Un masque définissant la zone réelle de la place (polygone excluant toits/façades/ciel) éliminerait ce type de faux positif quel que soit le seuil, sans jamais perdre une vraie personne — bon rapport effort/gain, mais pas encore implémenté : nécessite un outil de dessin interactif et une validation caméra par caméra (chaque caméra a ses propres structures fixes à exclure). À faire une fois que Grand Place et De Brouckère ont chacune été observées plus longtemps.
+
+**Licence** : poids et outillage YOLO26 sous AGPL-3.0 (Ultralytics), licence Enterprise disponible en alternative — à valider selon le contexte de déploiement.
 
 ---
 
@@ -134,7 +162,9 @@ Bulletin météo → `mymeteo.be` · INCA → `mymeteo.be/incaBe` (nouvel onglet
 | Élément | Détail |
 |---------|--------|
 | Worker proxy | `rough-block-b4fe.e-jesuran.workers.dev` — injecte `CRODEON_API_KEY`, cache Cache API (10 s latest / 30 s historique) |
+| Worker proxy HLS | Même Worker, route `/hls/*` → `livecam.brucity.be` (générique, sert les deux caméras, `worker.js` fonction `proxyHls`). Réécrit le manifeste `.m3u8`, ajoute CORS, supporte `Range`/`206`, cache les segments (`immutable`) sauf requêtes partielles. Nécessaire pour le comptage de foule (Panel 01) |
 | Clé API | Secret Worker, absente du code client |
+| `worker.js` | **Non suivi par git** (`.gitignore`) — tout changement nécessite un `wrangler deploy` manuel séparé, non visible dans l'historique du repo |
 | HLS | Streams publics, URLs en clair — acceptable |
 | CSP / SRI | Non implémentés — backlog I4 |
 
@@ -145,7 +175,8 @@ Bulletin météo → `mymeteo.be` · INCA → `mymeteo.be/incaBe` (nouvel onglet
 | Fichier | Rôle |
 |---------|------|
 | `index.html` | Application principale (tout-en-un) |
-| `worker.js` | Proxy Cloudflare Worker |
+| `worker.js` | Proxy Cloudflare Worker (API Crodeon + HLS Grand Place) |
+| `models/yolo26n.onnx` | Modèle YOLO26n (ONNX, entrée 1280px) — comptage de foule Panel 01 |
 | `documentation/index.html` | Guide utilisateur |
 | `documentation/screenshots/` | Captures (7 fichiers JPEG) — `vue-globale-annotee` et `panel-alerte` manquants |
 | `logo.png` / `logo_white.png` | Logo topbar bright / dark |
@@ -162,5 +193,9 @@ Bulletin météo → `mymeteo.be` · INCA → `mymeteo.be/incaBe` (nouvel onglet
 | U10 | ✅ | Couleurs stations sans connotation rouge/vert (--danger/--ok séparés) | 03 |
 | U11 | ✅ | Max 30' mobile paysage depuis historyCache Panel 04 | 03 |
 | U12 | ✅ | Stats panel : suppression MIN, police agrandie | 04 |
+| C1 | ✅ | Comptage de foule Grand Place — YOLO26n/ONNX côté navigateur, proxy HLS Worker | 01 |
+| C2 | 🟢 Basse | Alertes automatiques sur seuil de comptage — décliné pour v1 | 01 |
+| C3 | 🟢 Basse | Masque de zone (ROI) pour exclure trottoirs/façades hors place | 01 |
+| C4 | 🟢 Basse | Historique de comptage centralisé multi-appareils (Worker + KV) | 01 |
 | I4 | 🟢 Basse | CSP + SRI dépendances CDN | — |
 | DOC | 🟡 | Capturer `vue-globale-annotee` et `panel-alerte` | doc |
