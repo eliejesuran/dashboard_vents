@@ -739,7 +739,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/ort.min.js"></script>
+<!-- onnxruntime-web : chargé dynamiquement à la demande (cf. loadOrtScript dans initCrowdCounters),
+     uniquement quand le panel cams devient visible — ni le runtime ni le modèle au chargement de page. -->
 
 <script>
 /* ══ UTILITAIRE CSS VAR ═══════════════════════════ */
@@ -973,7 +974,9 @@ scheduleRefresh('debrouckere');
                                       // fait naturellement baisser la confiance par détection
   const MERGE_IOU_THRESHOLD = 0.4;   // dédoublonnage des détections aux chevauchements de tuiles
   const PERSON_CLASS_ID = 0;
-  const CYCLE_GAP_MS = 2000; // pause entre la fin d'un cycle complet (2 caméras) et le suivant
+  const CYCLE_GAP_MS = 45000; // pause entre deux cycles complets. Volontairement long : une foule
+                              // évolue sur des minutes, pas des secondes. Ré-échantillonner en continu
+                              // (ancienne valeur 2000) faisait tourner le GPU/CPU ~90 % du temps pour rien.
   const HISTORY_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
   const LOW_LIGHT_LUMA_THRESHOLD = 70;
   const ORT_VERSION = '1.27.0';
@@ -1031,10 +1034,17 @@ scheduleRefresh('debrouckere');
     return n ? total / n : 255;
   }
 
+  // Buffer réutilisé d'une tuile à l'autre (l'inférence est séquentielle : une seule tuile
+  // en vol à la fois). Évite ~600 Mo d'allocations transitoires par cycle. Garde-fou : en
+  // repli WASM+proxy, onnxruntime-web peut « transférer » (détacher) le buffer vers le worker,
+  // auquel cas .length retombe à 0 → on réalloue au coup suivant, sans jamais planter.
+  let tensorBuffer = null;
   function imageDataToTensor(imageData, size) {
     const { data } = imageData;
     const area = size * size;
-    const floatData = new Float32Array(3 * area);
+    const needed = 3 * area;
+    if (!tensorBuffer || tensorBuffer.length !== needed) tensorBuffer = new Float32Array(needed);
+    const floatData = tensorBuffer;
     for (let i = 0; i < area; i++) {
       floatData[i]             = data[i * 4]     / 255; // plan R
       floatData[area + i]      = data[i * 4 + 1] / 255; // plan G
@@ -1175,7 +1185,7 @@ scheduleRefresh('debrouckere');
 
   async function fullCycle() {
     for (const cam of cameras) {
-      if (document.hidden) return;
+      if (document.hidden || !panelVisible) return;
       try {
         await cam.runCycle();
       } catch (err) {
@@ -1186,37 +1196,59 @@ scheduleRefresh('debrouckere');
     }
   }
 
-  // Boucle auto-replanifiée (plutôt qu'un setInterval fixe) : chaque cycle complet
-  // (jusqu'à 2× ~13-15s) attend sa propre fin avant de programmer le suivant, donc
-  // aucun chevauchement possible même si un cycle dépasse largement l'intervalle nominal.
+  // Le comptage ne tourne que si l'onglet ET le panel cams sont visibles (le per-caméra
+  // mobile reste géré séparément par isTileVisible() dans runCycle).
+  let panelVisible = false;
+  function canRun() {
+    return loadState === 'ready' && !document.hidden && panelVisible;
+  }
+
+  // Boucle auto-replanifiée (plutôt qu'un setInterval fixe) : chaque cycle complet attend
+  // sa propre fin avant de programmer le suivant, donc aucun chevauchement possible même
+  // si un cycle dépasse largement l'intervalle nominal.
   async function loopTick() {
     await fullCycle();
-    if (document.hidden) { running = false; return; }
+    if (!canRun()) { running = false; return; }
     loopHandle = setTimeout(loopTick, CYCLE_GAP_MS);
   }
 
-  function pause() {
-    if (loopHandle) { clearTimeout(loopHandle); loopHandle = null; }
-    running = false; // un cycle déjà en vol se termine normalement, sans coupure brutale
-  }
-
-  function resume() {
-    if (loadState === 'ready' && !running) {
-      running = true;
-      loopTick();
+  // Démarre/arrête la boucle selon canRun(). Un cycle déjà en vol se termine normalement,
+  // sans coupure brutale ; on se contente de ne pas en replanifier.
+  function updateRunState() {
+    if (canRun()) {
+      if (!running) { running = true; loopTick(); }
+    } else {
+      if (loopHandle) { clearTimeout(loopHandle); loopHandle = null; }
+      running = false;
     }
   }
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) pause(); else resume();
-  });
+  document.addEventListener('visibilitychange', updateRunState);
 
-  async function loadModel() {
+  // onnxruntime-web (~1,5 Mo) injecté dynamiquement, et seulement à la première visibilité
+  // du panel cams : la visite « vent seul » n'embarque ni le runtime ni le modèle (~10 Mo).
+  function loadOrtScript() {
+    return new Promise((resolve, reject) => {
+      if (typeof ort !== 'undefined') return resolve();
+      const s = document.createElement('script');
+      s.src = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/ort.min.js`;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('CDN onnxruntime-web injoignable'));
+      document.head.appendChild(s);
+    });
+  }
+
+  let modelLoadStarted = false; // un seul chargement, même si l'observer refire
+  async function ensureModelLoaded() {
+    if (modelLoadStarted) return;
+    modelLoadStarted = true;
     loadState = 'loading';
     updateAllBadges();
 
-    if (typeof ort === 'undefined') {
-      console.error('Comptage de foule : onnxruntime-web indisponible (CDN bloqué ?)');
+    try {
+      await loadOrtScript();
+    } catch (e) {
+      console.error('Comptage de foule : onnxruntime-web indisponible (CDN bloqué ?)', e);
       loadState = 'error';
       updateAllBadges();
       return;
@@ -1224,8 +1256,12 @@ scheduleRefresh('debrouckere');
     ort.env.wasm.wasmPaths = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`;
 
     try {
+      // WebGPU : calcul sur le GPU, thread principal déjà quasi libre → pas de proxy (inchangé).
       session = await ort.InferenceSession.create(MODEL_URL, { executionProviders: ['webgpu'] });
     } catch (e) {
+      // Repli WASM : sans proxy, session.run s'exécute sur le thread UI et fige le tableau de
+      // bord par à-coups. On le déporte dans un worker — activé uniquement sur ce chemin lent.
+      ort.env.wasm.proxy = true;
       try {
         session = await ort.InferenceSession.create(MODEL_URL, { executionProviders: ['wasm'] });
       } catch (e2) {
@@ -1238,10 +1274,24 @@ scheduleRefresh('debrouckere');
 
     loadState = 'ready';
     updateAllBadges();
-    if (!document.hidden) resume();
+    updateRunState();
   }
 
-  loadModel();
+  // Rien ne se charge ni ne calcule tant que le panel cams n'est pas entré dans le viewport ;
+  // dès qu'il en sort, la boucle se met en pause (en plus de la pause onglet masqué).
+  const camsPanel = document.getElementById('panel1');
+  if (camsPanel && 'IntersectionObserver' in window) {
+    new IntersectionObserver((entries) => {
+      panelVisible = entries[0].isIntersecting;
+      if (panelVisible) ensureModelLoaded();
+      updateRunState();
+    }, { rootMargin: '100px' }).observe(camsPanel);
+  } else {
+    // Très vieux navigateur sans IntersectionObserver : ancien comportement (chargement
+    // immédiat, piloté ensuite par la seule visibilité d'onglet).
+    panelVisible = true;
+    ensureModelLoaded();
+  }
 })();
 
 /* ══ UTILITAIRES ══════════════════════════════════ */
