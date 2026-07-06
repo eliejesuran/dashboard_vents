@@ -30,6 +30,8 @@ SPA HTML/CSS/JS — monitoring temps réel de 4 anémomètres (API Crodeon) + hi
 Mobile < 900 px : colonne unique, ordre 03 → 04 → 02 → 01.  
 Mobile paysage (`@media (max-width:900px) and (orientation:landscape)`) : affiche `.anem-max30` dans chaque tuile.
 
+Mobile — veille & zoom : verrou d'écran (`navigator.wakeLock`, IIFE `keepScreenAwake`, repris à chaque retour au premier plan et au premier contact) empêche la mise en veille pendant le monitoring ; `touch-action: manipulation` sur `body` supprime le zoom au double-tap (pinch-zoom et scroll conservés). Wake Lock : Chrome/Android OK, iOS Safari ≥ 16.4 uniquement (no-op silencieux en dessous).
+
 ---
 
 ## Variables CSS
@@ -137,6 +139,8 @@ Le script ORT (~1,5 Mo) **et** le modèle (~10 Mo) sont **chargés paresseusemen
 
 **Cadence** : boucle auto-replanifiée (`setTimeout` en chaîne, pas un `setInterval` fixe) — chaque cycle complet (Grand Place puis De Brouckère, 32 tuiles au pire cas) attend sa propre fin avant de programmer le suivant, avec **45 s de battement** (`CYCLE_GAP_MS`). Valeur volontairement longue : une foule évolue sur des minutes, pas des secondes — l'ancien battement de 2 s ré-échantillonnait en continu et tenait le GPU/CPU ~90 % du temps pour rien. Aucun chevauchement possible même si un cycle dépasse largement le nominal, contrairement à un intervalle fixe. Pause automatique si onglet masqué (`visibilitychange`), **panel cams hors du viewport** (`IntersectionObserver` sur `#panel1` → `panelVisible`/`canRun`) ou tuile non visible (bascule mobile, par caméra) — vérifié par sondage `display` dans la boucle, aucune modification de `initLiveVideo()`.
 
+**États du badge / robustesse** : `CHARGEMENT…` au chargement du modèle · un entier une fois compté · `—` en attente d'image exploitable · `N/D` **uniquement** en cas d'échec de *chargement* du modèle (CDN / ORT / création de session). Une erreur d'inférence **ponctuelle** (frame momentanément illisible quand la vidéo n'est pas activement rendue, canvas taint, pilote GPU capricieux) est journalisée (« cycle ignoré ») puis **ignorée** : elle ne fige plus le badge en N/D — le `catch` d'inférence ne pose plus `loadState='error'`, et le cycle suivant reprend normalement. (Bug corrigé : auparavant la moindre erreur d'un cycle verrouillait N/D définitivement.)
+
 **RAM** : mesure directe (`performance.memory`, tas JS uniquement) : ~28 Mo au repos, pics à ~53 Mo pendant l'inférence — modeste, mais **ne capture ni la mémoire WASM d'onnxruntime ni les buffers WebGPU**, qui dominent probablement l'empreinte réelle (`performance.measureUserAgentSpecificMemory()` donnerait une mesure complète mais exige des headers `Cross-Origin-Isolation` non configurés ici). Pas de mesure précise du total process — à vérifier au besoin via le Gestionnaire des tâches Chrome (Shift+Échap) en conditions réelles.
 
 **RGPD** : classe COCO « personne » uniquement — pas de reconnaissance faciale, pas d'embeddings, pas de ré-identification inter-frames. Les canvas de capture ne sont jamais sérialisés (`toDataURL`/`toBlob`) ni transmis ; seul le compte agrégé (entier) est conservé, par caméra.
@@ -201,5 +205,7 @@ Bulletin météo → `mymeteo.be` · INCA → `mymeteo.be/incaBe` (nouvel onglet
 | C4 | 🟢 Basse | Historique de comptage centralisé multi-appareils (Worker + KV) | 01 |
 | C5 | ✅ | Allègement perf comptage — cadence 2 s→45 s, chargement paresseux ORT+modèle, proxy WASM hors thread UI, pause hors viewport, buffer tenseur réutilisé | 01 |
 | C6 | 🟢 Basse | Modèle quantifié INT8 (~3 Mo au lieu de 10) — écarté pour l'instant : nécessite ré-export Ultralytics + recalibration du seuil | 01 |
+| C7 | ✅ | Correction badge figé en `N/D` — les erreurs d'inférence ponctuelles ne verrouillent plus l'état ; `N/D` réservé à un échec de chargement du modèle | 01 |
+| M1 | ✅ | Mobile — veille écran (`navigator.wakeLock`) + suppression zoom double-tap (`touch-action: manipulation`) | — |
 | I4 | 🟢 Basse | CSP + SRI dépendances CDN | — |
 | DOC | 🟡 | Capturer `vue-globale-annotee` et `panel-alerte` | doc |

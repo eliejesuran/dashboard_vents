@@ -62,6 +62,9 @@
     height: 100vh;
     overflow: hidden;
     transition: background .3s, color .3s;
+    /* Mobile : supprime le zoom au double-tap (garde le pinch-zoom et le scroll). */
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
   }
 
   /* ── TOP BAR ─────────────────────────────────────── */
@@ -984,7 +987,7 @@ scheduleRefresh('debrouckere');
   // Modèle chargé une seule fois, partagé par les deux caméras (évite de doubler ~10 Mo
   // de poids + le runtime WASM pour rien, puisque l'inférence est de toute façon séquentielle).
   let session = null;
-  let loadState = 'idle'; // 'idle' | 'loading' | 'ready' | 'error'
+  let loadState = 'idle'; // 'idle' | 'loading' | 'ready' | 'error' — 'error' = échec de CHARGEMENT du modèle uniquement
   let loopHandle = null;
   let running = false;
 
@@ -1189,9 +1192,11 @@ scheduleRefresh('debrouckere');
       try {
         await cam.runCycle();
       } catch (err) {
-        console.error('Comptage de foule : erreur d\'inférence', err);
-        loadState = 'error';
-        updateAllBadges();
+        // Erreur d'inférence PONCTUELLE (frame momentanément illisible quand la vidéo n'est
+        // pas activement rendue, canvas taint, pilote GPU capricieux…) : on NE fige PAS en
+        // N/D — le modèle est chargé, le prochain cycle repassera. N/D reste réservé à un
+        // vrai échec de CHARGEMENT du modèle (CDN / ORT / création de session).
+        console.error('Comptage de foule : erreur d\'inférence (cycle ignoré)', err);
       }
     }
   }
@@ -1292,6 +1297,28 @@ scheduleRefresh('debrouckere');
     panelVisible = true;
     ensureModelLoaded();
   }
+})();
+
+/* ══ VEILLE ÉCRAN ═════════════════════════════════
+   Empêche la mise en veille de l'écran tant que le dashboard est au premier plan
+   (usage : affichage mural / monitoring). Le verrou saute quand l'onglet passe en
+   arrière-plan → on le reprend au retour. Certains navigateurs exigent un geste pour
+   le premier verrou → on retente aussi au premier contact. Sans effet si non supporté. */
+(function keepScreenAwake() {
+  if (!('wakeLock' in navigator)) return;
+  let wakeLock = null;
+  async function acquire() {
+    if (wakeLock || document.visibilityState !== 'visible') return;
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch (e) { /* refusé (batterie faible / geste requis) : on retentera */ }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') acquire();
+  });
+  window.addEventListener('pointerdown', acquire, { passive: true });
+  acquire();
 })();
 
 /* ══ UTILITAIRES ══════════════════════════════════ */
