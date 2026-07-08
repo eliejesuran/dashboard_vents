@@ -301,31 +301,6 @@
     font-size: 10px;
     letter-spacing: 1px;
   }
-  .crowd-badge {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    z-index: 2;
-    padding: 5px 8px;
-    border-radius: 6px;
-    background: rgba(17,24,39,.78);
-    font-family: 'Share Tech Mono', monospace;
-    text-align: right;
-  }
-  .crowd-badge-label {
-    display: block;
-    font-size: 9px;
-    letter-spacing: 1.5px;
-    color: rgba(255,255,255,.65);
-    text-transform: uppercase;
-  }
-  .crowd-badge-val {
-    display: block;
-    font-size: 9px;
-    font-weight: 700;
-    color: #fff;
-  }
-  .crowd-badge-val.crowd-error { color: #f59e0b; }
   .video-fallback {
     position: absolute;
     inset: 0;
@@ -625,7 +600,6 @@
     #panel3 { grid-column:1; grid-row:1; height:auto; overflow:visible; }
     .video-layout { grid-template-columns: 1fr; }
     .mobile-video-controls { display: block; }
-    .crowd-badge { top: 70px; } /* sous le bouton de bascule mobile (top:38px + ~29px de haut) */
     .stats-panel { display:none; }
     #panel4 .chart-wrap { flex:1; }
   }
@@ -662,9 +636,6 @@
       <div class="video-layout desktop-mode" id="videoLayout">
         <div class="video-tile" data-stream="grandplace">
           <div class="video-title">Grand Place</div>
-          <div class="crowd-badge" id="crowdBadge">
-            <span class="crowd-badge-val" id="crowdBadgeVal">—</span>
-          </div>
           <video id="liveVideoB" autoplay muted playsinline controls></video>
           <div class="video-fallback" id="videoFallbackB">
             <div>
@@ -675,9 +646,6 @@
         </div>
         <div class="video-tile" data-stream="debrouckere">
           <div class="video-title">De Brouckère</div>
-          <div class="crowd-badge" id="crowdBadgeDebrouckere">
-            <span class="crowd-badge-val" id="crowdBadgeValDebrouckere">—</span>
-          </div>
           <video id="liveVideoA" autoplay muted playsinline controls></video>
           <div class="video-fallback" id="videoFallbackA">
             <div>
@@ -742,8 +710,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<!-- onnxruntime-web : chargé dynamiquement à la demande (cf. loadOrtScript dans initCrowdCounters),
-     uniquement quand le panel cams devient visible — ni le runtime ni le modèle au chargement de page. -->
 
 <script>
 /* ══ UTILITAIRE CSS VAR ═══════════════════════════ */
@@ -807,15 +773,14 @@ updateClock();
 /* ══ VIDEO LIVE HLS ═══════════════════════════════ */
 (function initLiveVideo() {
   const streams = {
+    // Flux proxifiés via le Worker (/hls/* : CORS + Range/206 + réécriture m3u8) plutôt que
+    // l'URL directe livecam.brucity.be — proxy conservé après le retrait du comptage de foule
+    // (repris par le projet bme_GP), la lecture HLS passe déjà par lui.
     grandplace: {
-      // Proxifié via le Worker (et non l'URL directe livecam.brucity.be) : le flux source
-      // n'envoie aucun header CORS, ce qui empêche toute lecture de pixels côté navigateur
-      // (nécessaire pour le comptage de foule, cf. initCrowdCounter ci-dessous).
       url: 'https://rough-block-b4fe.e-jesuran.workers.dev/hls/LiveBrusselsWebcams/streams/vTm9wYDlwkAEO8mH1746783018793.m3u8',
       label: 'Grand Place'
     },
     debrouckere: {
-      // Proxifié également : le comptage de foule tourne maintenant sur les deux caméras.
       url: 'https://rough-block-b4fe.e-jesuran.workers.dev/hls/LiveBrusselsWebcams/streams/fDdnnEmqOn6Kyy3E1701416388577.m3u8',
       label: 'De Brouckère'
     }
@@ -848,15 +813,12 @@ updateClock();
     if (fallback) fallback.style.display = 'none';
   }
 
-  function attachStream(video, fallback, url, useCorsAnon) {
+  function attachStream(video, fallback, url) {
     if (!video || !fallback) return;
     hideFallbackByElement(fallback);
     video.muted = true;
     video.playsInline = true;
     video.autoplay = true;
-    // Requis pour le comptage de foule (lecture de pixels via canvas) sur le flux
-    // grandplace proxifié — doit être posé avant le chargement de la source.
-    if (useCorsAnon) video.crossOrigin = 'anonymous';
 
     if (video._hlsInstance) {
       video._hlsInstance.destroy();
@@ -899,7 +861,7 @@ updateClock();
   function scheduleRefresh(key) {
     setTimeout(() => {
       const refs = tiles[key];
-      attachStream(refs.video, refs.fallback, streams[key].url, true);
+      attachStream(refs.video, refs.fallback, streams[key].url);
       scheduleRefresh(key); // replanifie
     }, 90 * 60 * 1000); // 90 minutes
   }
@@ -936,8 +898,8 @@ scheduleRefresh('debrouckere');
     }
   }
 
-  attachStream(tiles.debrouckere.video, tiles.debrouckere.fallback, streams.debrouckere.url, true);
-  attachStream(tiles.grandplace.video, tiles.grandplace.fallback, streams.grandplace.url, true);
+  attachStream(tiles.debrouckere.video, tiles.debrouckere.fallback, streams.debrouckere.url);
+  attachStream(tiles.grandplace.video, tiles.grandplace.fallback, streams.grandplace.url);
   applyResponsiveVideoLayout();
 
   if (toggleButton) {
@@ -951,351 +913,6 @@ scheduleRefresh('debrouckere');
     mediaQuery.addEventListener('change', applyResponsiveVideoLayout);
   } else if (typeof mediaQuery.addListener === 'function') {
     mediaQuery.addListener(applyResponsiveVideoLayout);
-  }
-})();
-
-/* ══ COMPTAGE DE FOULE (Grand Place + De Brouckère, ML côté navigateur) ══
-   RGPD : détection de présence uniquement (classe COCO "personne"),
-   jamais d'identification. Les frames vidéo ne sont jamais transmises
-   ni stockées — seul le compte agrégé (entier) est conservé, en local
-   (localStorage), pour l'historique. Voir CLAUDE.md pour le détail.
-
-   Découpage en tuiles (SAHI) : une seule passe plein-cadre à 1280px
-   sous-détectait massivement sur ce plan large/aérien (26 personnes
-   détectées pour ~260 réelles). Une grille 4x4 (16 tuiles, chacune
-   repassée par le modèle à pleine résolution 1280px) fait monter le
-   rappel à ~85-90%, vérifié en direct contre un comptage manuel.
-   Coût : ~13-15s de calcul par caméra en WASM, d'où l'intervalle long. */
-(function initCrowdCounters() {
-  // Servi depuis GitHub (pas déployé sur l'hébergement FTP Infomaniak, quota 10 Mo
-  // trop petit pour ce fichier) — épinglé à un commit précis pour rester en phase avec
-  // le format de sortie du modèle attendu par le code de parsing ci-dessous.
-  const MODEL_URL = 'https://raw.githubusercontent.com/eliejesuran/dashboard_vents/771bf88/models/yolo26n.onnx';
-  const TILE_SIZE = 1280;
-  const GRID_COLS = 4, GRID_ROWS = 4, TILE_OVERLAP = 0.15; // calibré empiriquement (cf. CLAUDE.md)
-  const CONFIDENCE_THRESHOLD = 0.15; // plus bas qu'en plan unique : la densité de cette scène
-                                      // fait naturellement baisser la confiance par détection
-  const MERGE_IOU_THRESHOLD = 0.4;   // dédoublonnage des détections aux chevauchements de tuiles
-  const PERSON_CLASS_ID = 0;
-  const CYCLE_GAP_MS = 45000; // pause entre deux cycles complets. Volontairement long : une foule
-                              // évolue sur des minutes, pas des secondes. Ré-échantillonner en continu
-                              // (ancienne valeur 2000) faisait tourner le GPU/CPU ~90 % du temps pour rien.
-  const HISTORY_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-  const LOW_LIGHT_LUMA_THRESHOLD = 70;
-  const ORT_VERSION = '1.27.0';
-
-  // Modèle chargé une seule fois, partagé par les deux caméras (évite de doubler ~10 Mo
-  // de poids + le runtime WASM pour rien, puisque l'inférence est de toute façon séquentielle).
-  let session = null;
-  let loadState = 'idle'; // 'idle' | 'loading' | 'ready' | 'error' — 'error' = échec de CHARGEMENT du modèle uniquement
-  let loopHandle = null;
-  let running = false;
-
-  function iou(a, b) {
-    const x1 = Math.max(a.x1, b.x1), y1 = Math.max(a.y1, b.y1);
-    const x2 = Math.min(a.x2, b.x2), y2 = Math.min(a.y2, b.y2);
-    const interW = Math.max(0, x2 - x1), interH = Math.max(0, y2 - y1);
-    const inter = interW * interH;
-    const areaA = (a.x2 - a.x1) * (a.y2 - a.y1), areaB = (b.x2 - b.x1) * (b.y2 - b.y1);
-    return inter / (areaA + areaB - inter);
-  }
-
-  function mergeDetections(dets) {
-    const sorted = dets.slice().sort((a, b) => b.conf - a.conf);
-    const kept = [];
-    for (const d of sorted) {
-      let overlaps = false;
-      for (const k of kept) { if (iou(k, d) > MERGE_IOU_THRESHOLD) { overlaps = true; break; } }
-      if (!overlaps) kept.push(d);
-    }
-    return kept.length;
-  }
-
-  function makeTiles(fw, fh) {
-    const tiles = [];
-    const baseW = fw / GRID_COLS, baseH = fh / GRID_ROWS;
-    const overlapX = baseW * TILE_OVERLAP, overlapY = baseH * TILE_OVERLAP;
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        let sx = c * baseW - overlapX / 2, sy = r * baseH - overlapY / 2;
-        let sw = baseW + overlapX, sh = baseH + overlapY;
-        sx = Math.max(0, sx); sy = Math.max(0, sy);
-        sw = Math.min(fw - sx, sw); sh = Math.min(fh - sy, sh);
-        tiles.push({ sx, sy, sw, sh });
-      }
-    }
-    return tiles;
-  }
-
-  function sampleLuminance(imageData) {
-    const { data } = imageData;
-    let total = 0, n = 0;
-    for (let i = 0; i < data.length; i += 4 * 37) { // échantillonnage épars, moyenne grossière suffisante
-      total += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-      n++;
-    }
-    return n ? total / n : 255;
-  }
-
-  // Buffer réutilisé d'une tuile à l'autre (l'inférence est séquentielle : une seule tuile
-  // en vol à la fois). Évite ~600 Mo d'allocations transitoires par cycle. Garde-fou : en
-  // repli WASM+proxy, onnxruntime-web peut « transférer » (détacher) le buffer vers le worker,
-  // auquel cas .length retombe à 0 → on réalloue au coup suivant, sans jamais planter.
-  let tensorBuffer = null;
-  function imageDataToTensor(imageData, size) {
-    const { data } = imageData;
-    const area = size * size;
-    const needed = 3 * area;
-    if (!tensorBuffer || tensorBuffer.length !== needed) tensorBuffer = new Float32Array(needed);
-    const floatData = tensorBuffer;
-    for (let i = 0; i < area; i++) {
-      floatData[i]             = data[i * 4]     / 255; // plan R
-      floatData[area + i]      = data[i * 4 + 1] / 255; // plan G
-      floatData[2 * area + i]  = data[i * 4 + 2] / 255; // plan B
-    }
-    return new ort.Tensor('float32', floatData, [1, 3, size, size]);
-  }
-
-  // Un objet par caméra : sa propre vidéo/tuile/badge/historique, mais partage le modèle
-  // et toutes les fonctions ci-dessus avec l'autre caméra.
-  function createCameraCounter({ videoId, tileSelector, badgeValId, historyKey, historyGlobalName }) {
-    const video    = document.getElementById(videoId);
-    const tile     = document.querySelector(tileSelector);
-    const badgeVal = document.getElementById(badgeValId);
-    if (!video || !tile || !badgeVal) return null;
-
-    // Canvas "source" (frame vidéo brute, taille variable) et canvas "tuile" (toujours
-    // TILE_SIZE×TILE_SIZE, réutilisé pour chacune des 16 tuiles) — jamais ajoutés au DOM,
-    // jamais sérialisés (pas de toDataURL/toBlob) : rien ne peut fuiter vers le réseau/localStorage.
-    const sourceCanvas = document.createElement('canvas');
-    const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true });
-    const tileCanvas = document.createElement('canvas');
-    tileCanvas.width = TILE_SIZE; tileCanvas.height = TILE_SIZE;
-    const tileCtx = tileCanvas.getContext('2d', { willReadFrequently: true });
-
-    const crowdHistory = [];
-    window[historyGlobalName] = crowdHistory; // même convention que window._p4Cache (Panel 04)
-
-    function loadHistoryFromStorage() {
-      try {
-        const raw = localStorage.getItem(historyKey);
-        const parsed = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(parsed)) crowdHistory.push(...parsed);
-      } catch (e) { /* localStorage corrompu/indisponible : on repart d'un historique vide */ }
-      pruneHistory();
-    }
-
-    function pruneHistory() {
-      const cutoff = Date.now() - HISTORY_RETENTION_MS;
-      while (crowdHistory.length && crowdHistory[0].ts < cutoff) crowdHistory.shift();
-    }
-
-    function appendHistory(count) {
-      crowdHistory.push({ ts: Date.now(), count });
-      pruneHistory();
-      try {
-        localStorage.setItem(historyKey, JSON.stringify(crowdHistory));
-      } catch (e) { /* quota localStorage dépassé : l'affichage en direct reste fonctionnel */ }
-    }
-
-    function updateBadge(count) {
-      badgeVal.classList.remove('crowd-error');
-      if (loadState === 'loading') {
-        badgeVal.textContent = 'CHARGEMENT…';
-      } else if (loadState === 'error') {
-        badgeVal.textContent = 'N/D';
-        badgeVal.classList.add('crowd-error');
-      } else if (typeof count === 'number') {
-        badgeVal.textContent = String(count);
-      } else if (loadState === 'ready') {
-        badgeVal.textContent = '—'; // modèle prêt, en attente de la première image vidéo exploitable
-      }
-    }
-
-    function isTileVisible() {
-      return getComputedStyle(tile).display !== 'none';
-    }
-
-    async function runCycle() {
-      if (!isTileVisible() || video.readyState < 2) return; // HAVE_CURRENT_DATA
-      const vw = video.videoWidth, vh = video.videoHeight;
-      if (!vw || !vh) return;
-
-      sourceCanvas.width = vw; sourceCanvas.height = vh;
-      sourceCtx.filter = 'none';
-      sourceCtx.drawImage(video, 0, 0, vw, vh);
-      const luma = sampleLuminance(sourceCtx.getImageData(0, 0, vw, vh));
-      if (luma < LOW_LIGHT_LUMA_THRESHOLD) {
-        // Nuit — caméra RGB standard, pas de mode nuit : correctif limité, pas une solution.
-        sourceCtx.filter = 'brightness(1.35) contrast(1.15)';
-        sourceCtx.drawImage(video, 0, 0, vw, vh);
-        sourceCtx.filter = 'none';
-      }
-
-      const tiles = makeTiles(vw, vh);
-      const allDets = [];
-      for (const t of tiles) {
-        if (document.hidden) return; // abandon propre si l'onglet passe en arrière-plan mi-cycle
-
-        const scale = Math.min(TILE_SIZE / t.sw, TILE_SIZE / t.sh);
-        const newW = Math.round(t.sw * scale), newH = Math.round(t.sh * scale);
-        const padX = Math.floor((TILE_SIZE - newW) / 2), padY = Math.floor((TILE_SIZE - newH) / 2);
-        tileCtx.fillStyle = 'rgb(114,114,114)'; // gris neutre standard YOLO pour le padding letterbox
-        tileCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
-        tileCtx.drawImage(sourceCanvas, t.sx, t.sy, t.sw, t.sh, padX, padY, newW, newH);
-        const tensor = imageDataToTensor(tileCtx.getImageData(0, 0, TILE_SIZE, TILE_SIZE), TILE_SIZE);
-
-        const results = await session.run({ [session.inputNames[0]]: tensor });
-        const out = results[session.outputNames[0]];
-        const data = out.data;
-        for (let i = 0; i < out.dims[1]; i++) {
-          const o = i * 6; // [x1, y1, x2, y2, confidence, classId] — vérifié empiriquement à l'export
-          const conf = data[o + 4], cls = Math.round(data[o + 5]);
-          if (cls !== PERSON_CLASS_ID || conf <= CONFIDENCE_THRESHOLD) continue;
-          allDets.push({
-            x1: (data[o]     - padX) / scale + t.sx, y1: (data[o + 1] - padY) / scale + t.sy,
-            x2: (data[o + 2] - padX) / scale + t.sx, y2: (data[o + 3] - padY) / scale + t.sy,
-          });
-        }
-      }
-
-      const count = mergeDetections(allDets);
-      updateBadge(count);
-      appendHistory(count);
-    }
-
-    loadHistoryFromStorage();
-    updateBadge();
-    return { runCycle, updateBadge };
-  }
-
-  const cameras = [
-    createCameraCounter({
-      videoId: 'liveVideoB', tileSelector: '.video-tile[data-stream="grandplace"]',
-      badgeValId: 'crowdBadgeVal', historyKey: 'dashboard-crowd-history-grandplace',
-      historyGlobalName: '_p1CrowdHistoryGrandplace'
-    }),
-    createCameraCounter({
-      videoId: 'liveVideoA', tileSelector: '.video-tile[data-stream="debrouckere"]',
-      badgeValId: 'crowdBadgeValDebrouckere', historyKey: 'dashboard-crowd-history-debrouckere',
-      historyGlobalName: '_p1CrowdHistoryDebrouckere'
-    })
-  ].filter(Boolean);
-
-  if (!cameras.length) return;
-
-  function updateAllBadges() { cameras.forEach(c => c.updateBadge()); }
-
-  async function fullCycle() {
-    for (const cam of cameras) {
-      if (document.hidden || !panelVisible) return;
-      try {
-        await cam.runCycle();
-      } catch (err) {
-        // Erreur d'inférence PONCTUELLE (frame momentanément illisible quand la vidéo n'est
-        // pas activement rendue, canvas taint, pilote GPU capricieux…) : on NE fige PAS en
-        // N/D — le modèle est chargé, le prochain cycle repassera. N/D reste réservé à un
-        // vrai échec de CHARGEMENT du modèle (CDN / ORT / création de session).
-        console.error('Comptage de foule : erreur d\'inférence (cycle ignoré)', err);
-      }
-    }
-  }
-
-  // Le comptage ne tourne que si l'onglet ET le panel cams sont visibles (le per-caméra
-  // mobile reste géré séparément par isTileVisible() dans runCycle).
-  let panelVisible = false;
-  function canRun() {
-    return loadState === 'ready' && !document.hidden && panelVisible;
-  }
-
-  // Boucle auto-replanifiée (plutôt qu'un setInterval fixe) : chaque cycle complet attend
-  // sa propre fin avant de programmer le suivant, donc aucun chevauchement possible même
-  // si un cycle dépasse largement l'intervalle nominal.
-  async function loopTick() {
-    await fullCycle();
-    if (!canRun()) { running = false; return; }
-    loopHandle = setTimeout(loopTick, CYCLE_GAP_MS);
-  }
-
-  // Démarre/arrête la boucle selon canRun(). Un cycle déjà en vol se termine normalement,
-  // sans coupure brutale ; on se contente de ne pas en replanifier.
-  function updateRunState() {
-    if (canRun()) {
-      if (!running) { running = true; loopTick(); }
-    } else {
-      if (loopHandle) { clearTimeout(loopHandle); loopHandle = null; }
-      running = false;
-    }
-  }
-
-  document.addEventListener('visibilitychange', updateRunState);
-
-  // onnxruntime-web (~1,5 Mo) injecté dynamiquement, et seulement à la première visibilité
-  // du panel cams : la visite « vent seul » n'embarque ni le runtime ni le modèle (~10 Mo).
-  function loadOrtScript() {
-    return new Promise((resolve, reject) => {
-      if (typeof ort !== 'undefined') return resolve();
-      const s = document.createElement('script');
-      s.src = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/ort.min.js`;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error('CDN onnxruntime-web injoignable'));
-      document.head.appendChild(s);
-    });
-  }
-
-  let modelLoadStarted = false; // un seul chargement, même si l'observer refire
-  async function ensureModelLoaded() {
-    if (modelLoadStarted) return;
-    modelLoadStarted = true;
-    loadState = 'loading';
-    updateAllBadges();
-
-    try {
-      await loadOrtScript();
-    } catch (e) {
-      console.error('Comptage de foule : onnxruntime-web indisponible (CDN bloqué ?)', e);
-      loadState = 'error';
-      updateAllBadges();
-      return;
-    }
-    ort.env.wasm.wasmPaths = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`;
-
-    try {
-      // WebGPU : calcul sur le GPU, thread principal déjà quasi libre → pas de proxy (inchangé).
-      session = await ort.InferenceSession.create(MODEL_URL, { executionProviders: ['webgpu'] });
-    } catch (e) {
-      // Repli WASM : sans proxy, session.run s'exécute sur le thread UI et fige le tableau de
-      // bord par à-coups. On le déporte dans un worker — activé uniquement sur ce chemin lent.
-      ort.env.wasm.proxy = true;
-      try {
-        session = await ort.InferenceSession.create(MODEL_URL, { executionProviders: ['wasm'] });
-      } catch (e2) {
-        console.error('Comptage de foule : échec du chargement du modèle', e2);
-        loadState = 'error';
-        updateAllBadges();
-        return;
-      }
-    }
-
-    loadState = 'ready';
-    updateAllBadges();
-    updateRunState();
-  }
-
-  // Rien ne se charge ni ne calcule tant que le panel cams n'est pas entré dans le viewport ;
-  // dès qu'il en sort, la boucle se met en pause (en plus de la pause onglet masqué).
-  const camsPanel = document.getElementById('panel1');
-  if (camsPanel && 'IntersectionObserver' in window) {
-    new IntersectionObserver((entries) => {
-      panelVisible = entries[0].isIntersecting;
-      if (panelVisible) ensureModelLoaded();
-      updateRunState();
-    }, { rootMargin: '100px' }).observe(camsPanel);
-  } else {
-    // Très vieux navigateur sans IntersectionObserver : ancien comportement (chargement
-    // immédiat, piloté ensuite par la seule visibilité d'onglet).
-    panelVisible = true;
-    ensureModelLoaded();
   }
 })();
 

@@ -19,12 +19,9 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ${{ secrets.FTP_PATH }}
           local-dir: ./
-          # "include" n'est pas un paramètre reconnu par cette action (v4.3.5) — il ne
-          # restreignait donc rien : tout le dépôt était synchronisé (sauf les exclusions
-          # par défaut), d'où le dépassement de quota FTP en ajoutant models/yolo26n.onnx
-          # (~10 Mo, chargé depuis GitHub directement, cf. index.html — pas déployé ici).
+          # "include" n'est pas un paramètre reconnu par cette action (v4.3.5) : tout le
+          # dépôt est synchronisé sauf exclusions (quota FTP Infomaniak : 10 Mo).
           exclude: |
             **/.git*
             **/.git*/**
             **/node_modules/**
-            **/models/**
